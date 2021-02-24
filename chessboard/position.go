@@ -21,18 +21,3 @@ type Position struct {
 	inCheck         bool
 	legalMoves      []*Move
 }
-
-// LegalMoves returns the legal moves in this position, caching the computation
-func (pos *Position) LegalMoves() []*Move {
-	if pos.legalMoves != nil {
-		return pos.legalMoves
-	}
-
-	pos.ComputeLegalMoves()
-	return pos.legalMoves
-}
-
-// ComputeLegalMoves calculates the legal moves in this position
-func (pos *Position) ComputeLegalMoves() {
-
-}

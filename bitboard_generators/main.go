@@ -7,16 +7,6 @@ import (
 	. "github.com/ZaninAndrea/chess_engine/chessboard"
 )
 
-type PrecomputedBitboard struct {
-	KingMoves       [64]Bitboard
-	KnightMoves     [64]Bitboard
-	RookMagics      [64]uint64
-	RookIndexBits   [64]int
-	RookMasks       [64]Bitboard
-	BishopMagics    [64]uint64
-	BishopIndexBits [64]int
-}
-
 func main() {
 	kingMoves := generateKing()
 	knightMoves := generateKnight()
@@ -28,15 +18,17 @@ func main() {
 	bishopIndexBits := [64]int{6, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5, 7, 9, 9, 7, 5, 5, 5, 5, 7, 9, 9, 7, 5, 5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 6}
 
 	rookMasks := generateRookMasks()
+	rookMoves := generateRookMoves(rookMagics, rookIndexBits)
 
-	byteJSON, err := json.Marshal(PrecomputedBitboard{
+	byteJSON, err := json.Marshal(PrecomputedData{
 		KingMoves:       kingMoves,
 		KnightMoves:     knightMoves,
 		RookMagics:      rookMagics,
-		BishopMagics:    bishopMagics,
 		RookIndexBits:   rookIndexBits,
-		BishopIndexBits: bishopIndexBits,
 		RookMasks:       rookMasks,
+		RookMoves:       rookMoves,
+		BishopMagics:    bishopMagics,
+		BishopIndexBits: bishopIndexBits,
 	})
 
 	if err != nil {

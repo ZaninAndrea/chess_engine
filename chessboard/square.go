@@ -19,6 +19,14 @@ func (s Square) Bitboard() Bitboard {
 	return Bitboard(1 << (int(s.Rank)*8 + int(s.File)))
 }
 
+// SquareFromIndex returns a square from the passed index
+func SquareFromIndex(index int) Square {
+	file := File(index % 8)
+	rank := Rank(index / 8)
+
+	return Square{File: file, Rank: rank}
+}
+
 // Index returns which digit in the bitboard (from least meaningful to most meaningful)
 // encodes this square
 func (s Square) Index() int {

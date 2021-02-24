@@ -43,5 +43,26 @@ func TestColor(t *testing.T) {
 	if got != BlackColor {
 		t.Errorf("Bitboard for H8 should be Black, %s was returned instead", got)
 	}
+}
 
+func TestSquareFromIndex(t *testing.T) {
+	got := SquareFromIndex(0)
+	if got.String() != "A1" {
+		t.Errorf("Square from index 0 should be A1, %s was returned instead", got)
+	}
+
+	got = SquareFromIndex(4)
+	if got.String() != "E1" {
+		t.Errorf("Square from index 4 should be A5, %s was returned instead", got)
+	}
+
+	got = SquareFromIndex(10)
+	if got.String() != "C2" {
+		t.Errorf("Square from index 10 should be C2, %s was returned instead", got)
+	}
+
+	got = SquareFromIndex(63)
+	if got.String() != "H8" {
+		t.Errorf("Square from index 63 should be H8, %s was returned instead", got)
+	}
 }
