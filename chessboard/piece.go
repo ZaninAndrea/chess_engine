@@ -1,4 +1,27 @@
-package main
+package chessboard
+
+// Color holds the color of a piece
+type Color int
+
+// Possible colors of a piece or square on the board
+const (
+	WhiteColor Color = 1
+	BlackColor Color = -1
+	NoColor    Color = 0
+)
+
+func (c Color) String() string {
+	switch c {
+	case WhiteColor:
+		return "White"
+	case BlackColor:
+		return "Black"
+	case NoColor:
+		return "NoColor"
+	default:
+		panic("Unrecognized color")
+	}
+}
 
 type Piece int
 
@@ -17,16 +40,6 @@ const (
 	BlackBishop
 	BlackKnight
 	BlackPawn
-)
-
-// Color holds the color of a piece
-type Color int
-
-// Possible colors of a piece
-const (
-	WhiteColor Color = 1
-	BlackColor Color = -1
-	NoColor    Color = 0
 )
 
 func (p Piece) String() string {

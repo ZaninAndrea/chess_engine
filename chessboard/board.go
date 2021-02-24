@@ -1,6 +1,8 @@
-package main
+package chessboard
 
 import "fmt"
+
+//TODO: are the support bitboards necessary?
 
 // Board contains the position of all pieces on the chessboard
 type Board struct {
@@ -25,7 +27,7 @@ type Board struct {
 
 // Piece returns the piece in a given square of the board
 func (b *Board) Piece(s Square) Piece {
-	bbSquare := SquareBitboard(s)
+	bbSquare := s.Bitboard()
 	switch {
 	case b.bbWhiteKing&bbSquare != 0:
 		return WhiteKing
@@ -80,8 +82,8 @@ func (b *Board) Move(move Move) {
 		piece = b.Piece(move.from)
 	}
 
-	fromBB := SquareBitboard(move.from)
-	toBB := SquareBitboard(move.to)
+	fromBB := move.from.Bitboard()
+	toBB := move.to.Bitboard()
 	othersBB := ^(fromBB | toBB)
 
 	// Remove the piece in the start and target squares
@@ -128,12 +130,14 @@ func (b *Board) Move(move Move) {
 		panic("From position is empty")
 	}
 
+	// Update king position
 	if piece == WhiteKing {
 		b.whiteKingSquare = move.to
 	} else if piece == BlackKing {
 		b.blackKingSquare = move.to
 	}
 
+	// Update summary bitboards
 	b.emptySquares = (b.emptySquares | fromBB) & (^toBB)
 	if piece.Color() == WhiteColor {
 		b.whiteSquares = (b.whiteSquares | toBB) & (^fromBB)

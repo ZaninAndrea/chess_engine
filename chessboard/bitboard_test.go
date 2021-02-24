@@ -1,4 +1,4 @@
-package main
+package chessboard
 
 import "testing"
 
@@ -17,7 +17,7 @@ func TestKernighanPopCount(t *testing.T) {
 		t.Errorf("KernighanCount for 0 should be 0, %d was returned instead", got)
 	}
 
-	b = SquareBitboard(Square{File(4), Rank(2)})
+	b = (Square{File(4), Rank(2)}).Bitboard()
 	got = b.KernighanPopCount()
 	if got != 1 {
 		t.Errorf("KernighanCount for Square bitboard should be 1, %d was returned instead", got)
@@ -39,7 +39,7 @@ func TestParallelPopCount(t *testing.T) {
 		t.Errorf("ParallelCount for 0 should be 0, %d was returned instead", got)
 	}
 
-	b = SquareBitboard(Square{File(4), Rank(2)})
+	b = (Square{File(4), Rank(2)}).Bitboard()
 	got = b.ParallelPopCount()
 	if got != 1 {
 		t.Errorf("ParallelCount for Square bitboard should be 1, %d was returned instead", got)

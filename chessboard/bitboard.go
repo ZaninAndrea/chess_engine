@@ -1,4 +1,4 @@
-package main
+package chessboard
 
 // Bitboard contains boolean informations about each square on the board.
 // Conventionally A1 is the 0th bit and H8 is the 63rd bit
@@ -39,10 +39,11 @@ func (b Bitboard) String() string {
 
 	for r := 7; r >= 0; r-- {
 		for f := 0; f < 8; f++ {
-			if b&SquareBitboard(Square{File(f), Rank(r)}) != 0 {
+			squareBB := (Square{File(f), Rank(r)}).Bitboard()
+			if b&squareBB != 0 {
 				s += "1 "
 			} else {
-				s += "0 "
+				s += ". "
 			}
 		}
 		s += "\n"

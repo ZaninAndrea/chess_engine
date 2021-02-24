@@ -1,4 +1,4 @@
-package main
+package chessboard
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 func TestPiece(t *testing.T) {
 	a5 := Square{File(0), Rank(4)}
-	b := Board{bbWhitePawn: SquareBitboard(a5)}
+	b := Board{bbWhitePawn: a5.Bitboard()}
 	got := b.Piece(a5)
 
 	if got != WhitePawn {
@@ -14,7 +14,7 @@ func TestPiece(t *testing.T) {
 	}
 
 	b8 := Square{File(1), Rank(7)}
-	b = Board{bbWhiteRook: SquareBitboard(b8)}
+	b = Board{bbWhiteRook: b8.Bitboard()}
 	got = b.Piece(b8)
 	if got != WhiteRook {
 		t.Errorf("Piece in B8 should be ♖, %s was returned instead", got)
@@ -33,9 +33,9 @@ func TestMove(t *testing.T) {
 	e3 := Square{File(4), Rank(2)}
 
 	b := Board{
-		bbWhiteKing: SquareBitboard(c2),
-		bbBlackPawn: SquareBitboard(c3),
-		bbBlackKing: SquareBitboard(e3),
+		bbWhiteKing: c2.Bitboard(),
+		bbBlackPawn: c3.Bitboard(),
+		bbBlackKing: e3.Bitboard(),
 	}
 
 	b.Move(Move{from: c2, to: c3})
