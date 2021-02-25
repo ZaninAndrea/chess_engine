@@ -21,12 +21,12 @@ type Board struct {
 	whiteSquares    Bitboard
 	blackSquares    Bitboard
 	emptySquares    Bitboard
-	whiteKingSquare Square
-	blackKingSquare Square
+	whiteKingSquare square
+	blackKingSquare square
 }
 
 // Piece returns the piece in a given square of the board
-func (b *Board) Piece(s Square) Piece {
+func (b *Board) Piece(s square) Piece {
 	bbSquare := s.Bitboard()
 	switch {
 	case b.bbWhiteKing&bbSquare != 0:
@@ -63,7 +63,7 @@ func (b Board) String() string {
 	for r := 7; r >= 0; r-- {
 		s += fmt.Sprintf("%d ", r+1)
 		for f := 0; f < 8; f++ {
-			s += b.Piece(Square{File(f), Rank(r)}).String() + " "
+			s += b.Piece(square(f+r*8)).String() + " "
 		}
 		s += "\n"
 	}
@@ -144,4 +144,6 @@ func (b *Board) Move(move Move) {
 	} else {
 		b.blackSquares = (b.blackSquares | toBB) & (^fromBB)
 	}
+
+	// TODO: manage en passant captures
 }

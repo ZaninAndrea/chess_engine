@@ -34,12 +34,19 @@ func (b Bitboard) ParallelPopCount() int {
 	return int((bb * factor) >> 56)
 }
 
+// LeastSignificantBit computes the index of the Least Significant Bit assuming that the bitboard is not empty
+func (b Bitboard) LeastSignificantBit() int {
+	// We can leverage the two-complement representation to rapidly generate
+	// a bitboard with only the bits preceding the Least Significant Bit set as 1
+	return ((b & -b) - 1).ParallelPopCount()
+}
+
 func (b Bitboard) String() string {
 	s := ""
 
 	for r := 7; r >= 0; r-- {
 		for f := 0; f < 8; f++ {
-			squareBB := (Square{File(f), Rank(r)}).Bitboard()
+			squareBB := (square(f + r*8)).Bitboard()
 			if b&squareBB != 0 {
 				s += "1 "
 			} else {

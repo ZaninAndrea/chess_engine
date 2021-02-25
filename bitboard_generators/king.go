@@ -14,35 +14,35 @@ func generateKing() [64]Bitboard {
 
 			// Move down
 			if r > 0 {
-				bb |= (Square{File: File(f), Rank: Rank(r - 1)}).Bitboard()
+				bb |= SquareFromFileRank(f, r-1).Bitboard()
 			}
 			// Move up
 			if r < 7 {
-				bb |= (Square{File: File(f), Rank: Rank(r + 1)}).Bitboard()
+				bb |= SquareFromFileRank(f, r+1).Bitboard()
 			}
 			// Move left
 			if f > 0 {
-				bb |= (Square{File: File(f - 1), Rank: Rank(r)}).Bitboard()
+				bb |= SquareFromFileRank(f-1, r).Bitboard()
 			}
 			// Move right
 			if f < 7 {
-				bb |= (Square{File: File(f + 1), Rank: Rank(r)}).Bitboard()
+				bb |= SquareFromFileRank(f+1, r).Bitboard()
 			}
 			// Move down-left
 			if r > 0 && f > 0 {
-				bb |= (Square{File: File(f - 1), Rank: Rank(r - 1)}).Bitboard()
+				bb |= SquareFromFileRank(f-1, r-1).Bitboard()
 			}
 			// Move down-right
 			if r > 0 && f < 7 {
-				bb |= (Square{File: File(f + 1), Rank: Rank(r - 1)}).Bitboard()
+				bb |= SquareFromFileRank(f+1, r-1).Bitboard()
 			}
 			// Move up-left
 			if r < 7 && f > 0 {
-				bb |= (Square{File: File(f - 1), Rank: Rank(r + 1)}).Bitboard()
+				bb |= SquareFromFileRank(f-1, r+1).Bitboard()
 			}
 			// Move up-right
 			if r < 7 && f < 7 {
-				bb |= (Square{File: File(f + 1), Rank: Rank(r + 1)}).Bitboard()
+				bb |= SquareFromFileRank(f+1, r+1).Bitboard()
 			}
 
 			kingMoves[f+r*8] = bb

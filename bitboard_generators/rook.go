@@ -21,7 +21,7 @@ func generateRookMasks() [64]Bitboard {
 			bb |= rank1 << uint64(8*r)
 
 			// remove the current square
-			squareBB := (Square{File: File(f), Rank: Rank(r)}).Bitboard()
+			squareBB := SquareFromFileRank(f, r).Bitboard()
 			bb &= ^uint64(squareBB)
 
 			outer := uint64(0)
@@ -68,19 +68,19 @@ func fillRookMovesSquare(file int, rank int, rookMagics [64]uint64, rookIndexBit
 
 	// left squares
 	for f := 1; f < file; f++ {
-		choices = append(choices, SquareFromIndex(f+rank*8).Bitboard())
+		choices = append(choices, SquareFromFileRank(f, rank).Bitboard())
 	}
 	// right squares
 	for f := 6; f > file; f-- {
-		choices = append(choices, SquareFromIndex(f+rank*8).Bitboard())
+		choices = append(choices, SquareFromFileRank(f, rank).Bitboard())
 	}
 	// up squares
 	for r := 6; r > rank; r-- {
-		choices = append(choices, SquareFromIndex(file+r*8).Bitboard())
+		choices = append(choices, SquareFromFileRank(file, r).Bitboard())
 	}
 	// down squares
 	for r := 1; r < rank; r++ {
-		choices = append(choices, SquareFromIndex(file+r*8).Bitboard())
+		choices = append(choices, SquareFromFileRank(file, r).Bitboard())
 	}
 
 	// All the combinations of blocked squares can be iterated by
@@ -101,7 +101,7 @@ func fillRookMovesSquare(file int, rank int, rookMagics [64]uint64, rookIndexBit
 
 		// moving left
 		for f := file - 1; f >= 0; f-- {
-			squareBB := SquareFromIndex(f + rank*8).Bitboard()
+			squareBB := SquareFromFileRank(f, rank).Bitboard()
 			moves |= squareBB
 
 			// if a blocker is encountered exit the loop
@@ -111,7 +111,7 @@ func fillRookMovesSquare(file int, rank int, rookMagics [64]uint64, rookIndexBit
 		}
 		// moving right
 		for f := file + 1; f <= 7; f++ {
-			squareBB := SquareFromIndex(f + rank*8).Bitboard()
+			squareBB := SquareFromFileRank(f, rank).Bitboard()
 			moves |= squareBB
 
 			// if a blocker is encountered exit the loop
@@ -121,7 +121,7 @@ func fillRookMovesSquare(file int, rank int, rookMagics [64]uint64, rookIndexBit
 		}
 		// moving up
 		for r := rank + 1; r <= 7; r++ {
-			squareBB := SquareFromIndex(file + r*8).Bitboard()
+			squareBB := SquareFromFileRank(file, r).Bitboard()
 			moves |= squareBB
 
 			// if a blocker is encountered exit the loop
@@ -131,7 +131,7 @@ func fillRookMovesSquare(file int, rank int, rookMagics [64]uint64, rookIndexBit
 		}
 		// moving down
 		for r := rank - 1; r >= 0; r-- {
-			squareBB := SquareFromIndex(file + r*8).Bitboard()
+			squareBB := SquareFromFileRank(file, r).Bitboard()
 			moves |= squareBB
 
 			// if a blocker is encountered exit the loop

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
+
 	. "github.com/ZaninAndrea/chess_engine/chessboard"
 )
 
 func main() {
-	game := Game{}
+	game := NewGame()
 
-	game.LoadPrecomputedData("./precomputed.json")
+	fmt.Println(game.Position)
 }

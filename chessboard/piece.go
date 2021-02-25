@@ -23,6 +23,21 @@ func (c Color) String() string {
 	}
 }
 
+// Other returns the other color
+func (c Color) Other() Color {
+	switch c {
+	case WhiteColor:
+		return BlackColor
+	case BlackColor:
+		return WhiteColor
+	case NoColor:
+		return NoColor
+	default:
+		panic("Unrecognized color")
+	}
+}
+
+// Piece contains information about the piece type; e.g. white king, black rook, ...
 type Piece int
 
 // Names for all the pieces of the board

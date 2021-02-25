@@ -4,8 +4,8 @@ import "fmt"
 
 // Move contains the informations about a move
 type Move struct {
-	from      Square
-	to        Square
+	from      square
+	to        square
 	promotion Piece
 }
 
