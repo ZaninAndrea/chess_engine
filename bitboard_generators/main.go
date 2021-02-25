@@ -19,6 +19,8 @@ func main() {
 
 	rookMasks := generateRookMasks()
 	rookMoves := generateRookMoves(rookMagics, rookIndexBits)
+	bishopMasks := generateBishopMasks()
+	bishopMoves := generateBishopMoves(bishopMagics, bishopIndexBits)
 
 	byteJSON, err := json.Marshal(PrecomputedData{
 		KingMoves:       kingMoves,
@@ -29,6 +31,8 @@ func main() {
 		RookMoves:       rookMoves,
 		BishopMagics:    bishopMagics,
 		BishopIndexBits: bishopIndexBits,
+		BishopMasks:     bishopMasks,
+		BishopMoves:     bishopMoves,
 	})
 
 	if err != nil {

@@ -5,11 +5,11 @@ import (
 	"math/rand"
 	"time"
 
-	. "github.com/ZaninAndrea/chess_engine/chessboard"
+	"github.com/ZaninAndrea/chess_engine/chessboard"
 )
 
 func main() {
-	game := NewGame()
+	game := chessboard.NewGame()
 
 	fmt.Print("\033[H\033[2J")
 	fmt.Println(game.Position())

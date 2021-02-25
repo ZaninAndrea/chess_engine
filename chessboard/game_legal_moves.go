@@ -19,6 +19,8 @@ func (game *Game) LegalMoves() []*Move {
 	computeKingMoves(game, &moves, &ownPieces)
 	computeKnightMoves(game, &moves, &ownPieces)
 	computeRookMoves(game, &moves, &ownPieces)
+	computeBishopMoves(game, &moves, &ownPieces)
+	computeQueenMoves(game, &moves, &ownPieces)
 	computePawnMoves(game, &moves)
 
 	game.position.legalMoves = moves
@@ -193,6 +195,74 @@ func computeRookMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 		for rookMovesBB != 0 {
 			toSquare := square(rookMovesBB.LeastSignificantBit())
 			rookMovesBB.ClearLeastSignificantBit()
+
+			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+		}
+	}
+}
+
+func computeBishopMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
+	var bishops Bitboard
+	if game.position.turn == WhiteColor {
+		bishops = game.position.board.bbWhiteBishop
+	} else {
+		bishops = game.position.board.bbBlackBishop
+	}
+
+	for bishops != 0 {
+		fromSquare := square(bishops.LeastSignificantBit())
+		bishops.ClearLeastSignificantBit()
+
+		blockers := (^game.position.board.emptySquares) & game.precomputedData.BishopMasks[fromSquare]
+
+		key := (uint64(blockers) * game.precomputedData.BishopMagics[fromSquare]) >> (64 - game.precomputedData.BishopIndexBits[fromSquare])
+
+		// Return the preinitialized attack set bitboard from the table
+		bishopMovesBB := game.precomputedData.BishopMoves[fromSquare][key]
+
+		// Remove self-captures
+		bishopMovesBB &^= *ownPieces
+
+		for bishopMovesBB != 0 {
+			toSquare := square(bishopMovesBB.LeastSignificantBit())
+			bishopMovesBB.ClearLeastSignificantBit()
+
+			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+		}
+	}
+}
+
+func computeQueenMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
+	var queens Bitboard
+	if game.position.turn == WhiteColor {
+		queens = game.position.board.bbWhiteQueen
+	} else {
+		queens = game.position.board.bbBlackQueen
+	}
+
+	// Compute the moves of each queen by considering both rook and bishop moves
+	for queens != 0 {
+		fromSquare := square(queens.LeastSignificantBit())
+		queens.ClearLeastSignificantBit()
+
+		blockersBishop := (^game.position.board.emptySquares) & game.precomputedData.BishopMasks[fromSquare]
+		blockersRook := (^game.position.board.emptySquares) & game.precomputedData.RookMasks[fromSquare]
+
+		keyBishop := (uint64(blockersBishop) * game.precomputedData.BishopMagics[fromSquare]) >> (64 - game.precomputedData.BishopIndexBits[fromSquare])
+		keyRook := (uint64(blockersRook) * game.precomputedData.RookMagics[fromSquare]) >> (64 - game.precomputedData.RookIndexBits[fromSquare])
+
+		// Return the preinitialized attack set bitboard from the table
+		bishopMovesBB := game.precomputedData.BishopMoves[fromSquare][keyBishop]
+		rookMovesBB := game.precomputedData.RookMoves[fromSquare][keyRook]
+
+		queenMovesBB := bishopMovesBB | rookMovesBB
+
+		// Remove self-captures
+		queenMovesBB &^= *ownPieces
+
+		for queenMovesBB != 0 {
+			toSquare := square(queenMovesBB.LeastSignificantBit())
+			queenMovesBB.ClearLeastSignificantBit()
 
 			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 		}
