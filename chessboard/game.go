@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// PrecomputedData contains all the precalculated bitboards used in move generation
 type PrecomputedData struct {
 	KingMoves       [64]Bitboard
 	KnightMoves     [64]Bitboard
@@ -21,30 +22,36 @@ type PrecomputedData struct {
 	BishopMoves     [64][1024]Bitboard
 }
 
+// Game contains all information about the game
 type Game struct {
-	PrecomputedData  PrecomputedData
-	Position         *Position
-	PositionsHistory []*Position
-	Moves            []Move
+	precomputedData  PrecomputedData
+	position         *Position
+	positionsHistory []*Position
+	moves            []Move
 }
 
 func (game Game) String() string {
-	return fmt.Sprint(game.Moves)
+	return fmt.Sprint(game.moves)
 }
 
 // Move applies a move in the game
 func (game *Game) Move(move Move) {
-	pos := game.Position.Move(move)
-	game.Position = &pos
-	game.PositionsHistory = append(game.PositionsHistory, game.Position)
-	game.Moves = append(game.Moves, move)
+	pos := game.position.Move(move)
+	game.position = &pos
+	game.positionsHistory = append(game.positionsHistory, game.position)
+	game.moves = append(game.moves, move)
 }
 
 // UndoMove undoes the last move
 func (game *Game) UndoMove() {
-	game.Moves = game.Moves[:len(game.Moves)-1]
-	game.PositionsHistory = game.PositionsHistory[:len(game.PositionsHistory)-1]
-	game.Position = game.PositionsHistory[len(game.PositionsHistory)-1]
+	game.moves = game.moves[:len(game.moves)-1]
+	game.positionsHistory = game.positionsHistory[:len(game.positionsHistory)-1]
+	game.position = game.positionsHistory[len(game.positionsHistory)-1]
+}
+
+// Position returns the current position in the game
+func (game *Game) Position() Position {
+	return *game.position
 }
 
 // LoadPrecomputedData loads all the precomputed data for fast move generation
@@ -60,7 +67,7 @@ func (game *Game) LoadPrecomputedData(path string) {
 		panic(err)
 	}
 
-	game.PrecomputedData = data
+	game.precomputedData = data
 }
 
 // NewGame initializes a new game
@@ -73,10 +80,10 @@ func NewGame() Game {
 func NewGameFromFEN(fen string) Game {
 	game := Game{}
 	game.LoadPrecomputedData("./precomputed.json")
-	game.PositionsHistory = []*Position{}
-	game.Moves = []Move{}
+	game.positionsHistory = []*Position{}
+	game.moves = []Move{}
 	pos := Position{}
-	game.Position = &pos
+	game.position = &pos
 
 	fen = strings.TrimSpace(fen)
 	pieces := strings.Split(fen, " ")
@@ -84,37 +91,37 @@ func NewGameFromFEN(fen string) Game {
 		panic("Invalid fen passed: it should have 6 pieces")
 	}
 
-	game.Position.board = parseFenBoard(pieces[0])
+	game.position.board = parseFenBoard(pieces[0])
 
 	switch pieces[1] {
 	case "w":
-		game.Position.turn = WhiteColor
+		game.position.turn = WhiteColor
 	case "b":
-		game.Position.turn = BlackColor
+		game.position.turn = BlackColor
 	default:
 		panic("Invalid fen turn string")
 	}
 
-	game.Position.castleRights = parseCastleRights(pieces[2])
+	game.position.castleRights = parseCastleRights(pieces[2])
 	enPassantSquare, ok := stringToSquare[pieces[3]]
 	if !ok {
 		panic("Unrecognized en passant square")
 	}
-	game.Position.enPassantSquare = enPassantSquare
+	game.position.enPassantSquare = enPassantSquare
 
 	halfMoveClock, err := strconv.Atoi(pieces[4])
 	if err != nil || halfMoveClock < 0 {
 		panic("Half move clock should be a non negative number")
 	}
-	game.Position.halfMoveClock = halfMoveClock
+	game.position.halfMoveClock = halfMoveClock
 
 	moveCount, err := strconv.Atoi(pieces[5])
 	if err != nil || moveCount < 1 {
 		panic("Move count should be a positive number")
 	}
-	game.Position.moveCount = moveCount
+	game.position.moveCount = moveCount
 
-	game.PositionsHistory = []*Position{game.Position}
+	game.positionsHistory = []*Position{game.position}
 	// TODO: update in check status
 
 	return game
@@ -184,7 +191,7 @@ func parseFenBoard(rawBoard string) Board {
 			board.bbBlackKnight |= currentSquare.Bitboard()
 			currentSquare++
 		case 'p':
-			board.bbBlackKnight |= currentSquare.Bitboard()
+			board.bbBlackPawn |= currentSquare.Bitboard()
 			currentSquare++
 		case '/':
 			currentSquare -= 16
@@ -199,6 +206,8 @@ func parseFenBoard(rawBoard string) Board {
 
 		index++
 	}
+
+	board.FillSupportBitboards()
 
 	return board
 }

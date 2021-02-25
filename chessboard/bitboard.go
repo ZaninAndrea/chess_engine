@@ -41,6 +41,16 @@ func (b Bitboard) LeastSignificantBit() int {
 	return ((b & -b) - 1).ParallelPopCount()
 }
 
+// ClearLeastSignificantBit set the least significant 1-bit to 0
+func (b *Bitboard) ClearLeastSignificantBit() {
+	*b = *b & (*b - 1)
+}
+
+// IsSquareOccupied returns whether the passed square is a 1-bit in the bitboard
+func (b *Bitboard) IsSquareOccupied(sq square) bool {
+	return (*b)&sq.Bitboard() != 0
+}
+
 func (b Bitboard) String() string {
 	s := ""
 

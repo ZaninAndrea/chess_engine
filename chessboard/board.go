@@ -2,8 +2,6 @@ package chessboard
 
 import "fmt"
 
-//TODO: are the support bitboards necessary?
-
 // Board contains the position of all pieces on the chessboard
 type Board struct {
 	bbWhiteKing     Bitboard
@@ -23,6 +21,17 @@ type Board struct {
 	emptySquares    Bitboard
 	whiteKingSquare square
 	blackKingSquare square
+}
+
+// FillSupportBitboards computes and sets the support bitboard in the Board
+func (b *Board) FillSupportBitboards() {
+	b.whiteSquares = b.bbWhiteKing | b.bbWhiteQueen | b.bbWhiteRook |
+		b.bbWhiteBishop | b.bbWhiteKnight | b.bbWhitePawn
+	b.blackSquares = b.bbBlackKing | b.bbBlackQueen | b.bbBlackRook |
+		b.bbBlackBishop | b.bbBlackKnight | b.bbBlackPawn
+	b.emptySquares = ^(b.whiteSquares | b.blackSquares)
+	b.whiteKingSquare = square(b.bbWhiteKing.LeastSignificantBit())
+	b.blackKingSquare = square(b.bbBlackKing.LeastSignificantBit())
 }
 
 // Piece returns the piece in a given square of the board

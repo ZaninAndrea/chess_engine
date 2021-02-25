@@ -66,3 +66,42 @@ func TestLeastSignificantBit(t *testing.T) {
 		t.Errorf("LeastSignificantBit for E3 bitboard should be 20, %d was returned instead", got)
 	}
 }
+
+func TestClearLeastSignificantBit(t *testing.T) {
+	b := Bitboard(0b01110101)
+	b.ClearLeastSignificantBit()
+
+	if b != Bitboard(0b01110100) {
+		t.Errorf("ClearLeastSignificantBit for 0b01110101 should leave 0b01110100, %d was returned instead", b)
+	}
+
+	b = Bitboard(0b1110000)
+	b.ClearLeastSignificantBit()
+	if b != Bitboard(0b1100000) {
+		t.Errorf("ClearLeastSignificantBit for 0b1110000 should leave 0b1100000, %d was returned instead", b)
+	}
+
+	b = E3.Bitboard()
+	b.ClearLeastSignificantBit()
+	if b != 0 {
+		t.Errorf("ClearLeastSignificantBit for Square should leave 0, %d was returned instead", b)
+	}
+}
+
+func TestIsSquareOccupied(t *testing.T) {
+	b := Bitboard(0)
+
+	if b.IsSquareOccupied(A1) {
+		t.Errorf("IsSquareOccupied(A1) for empty bitboard should return false")
+	}
+
+	b = E3.Bitboard()
+	if !b.IsSquareOccupied(E3) {
+		t.Errorf("IsSquareOccupied(E3) for E3 bitboard should return true")
+	}
+
+	b = F7.Bitboard()
+	if b.IsSquareOccupied(G1) {
+		t.Errorf("IsSquareOccupied(G1) for F7 bitboard should return false")
+	}
+}

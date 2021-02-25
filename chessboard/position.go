@@ -55,6 +55,7 @@ func (pos Position) Move(move Move) Position {
 	pos.board.Move(move)
 	pos.turn = pos.turn.Other()
 	pos.moveCount++
+	pos.legalMoves = nil
 
 	return pos
 }
