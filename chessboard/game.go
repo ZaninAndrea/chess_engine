@@ -85,7 +85,15 @@ func (game *Game) Result() Result {
 
 	legalMoves := game.LegalMoves()
 	if len(legalMoves) == 0 {
-		if game.position.board.IsInCheck(game) {
+		var kingSquare square
+
+		if game.position.turn == WhiteColor {
+			kingSquare = game.position.board.whiteKingSquare
+		} else {
+			kingSquare = game.position.board.blackKingSquare
+		}
+
+		if game.position.board.IsUnderAttack(game, kingSquare) {
 			return Checkmate
 		}
 

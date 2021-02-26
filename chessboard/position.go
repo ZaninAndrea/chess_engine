@@ -55,13 +55,12 @@ func (pos Position) Move(move *Move) Position {
 	pos.board.Move(move)
 	pos.turn = pos.turn.Other()
 	pos.moveCount++
-
-	// TODO: captures should reset the half move clock
-	if (pos.board.bbWhitePawn|pos.board.bbBlackPawn)&move.to.Bitboard() != 0 {
+	if move.ShouldResetHalfMoveClock() {
 		pos.halfMoveClock = 0
 	} else {
 		pos.halfMoveClock++
 	}
+
 	pos.legalMoves = nil
 
 	// update castle rights

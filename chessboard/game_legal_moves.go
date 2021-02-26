@@ -2,6 +2,7 @@ package chessboard
 
 // LegalMoves returns the legal moves in the current position and caches them
 func (game *Game) LegalMoves() []*Move {
+	// Return cached value if possible
 	if game.position.legalMoves != nil {
 		return game.position.legalMoves
 	}
@@ -26,6 +27,11 @@ func (game *Game) LegalMoves() []*Move {
 	legalMoves := make([]*Move, 0, len(pseudolegalMoves))
 	for i := 0; i < len(pseudolegalMoves); i++ {
 		if checkMoveLegality(pseudolegalMoves[i], game) {
+			// Captures should reset the half move clock
+			if pseudolegalMoves[i].to.Bitboard()&game.position.board.emptySquares == 0 {
+				pseudolegalMoves[i].flags |= ResetHalfMoveClockFlag
+			}
+
 			legalMoves = append(legalMoves, pseudolegalMoves[i])
 		}
 	}
@@ -39,8 +45,21 @@ func checkMoveLegality(move *Move, game *Game) bool {
 	simulationBoard := game.position.board
 	simulationBoard.Move(move)
 
-	return !simulationBoard.IsInCheck(game)
+	var kingSquare square
+	if game.position.turn == WhiteColor {
+		kingSquare = simulationBoard.whiteKingSquare
+	} else {
+		kingSquare = simulationBoard.blackKingSquare
+	}
+
+	return !simulationBoard.IsUnderAttack(game, kingSquare)
 }
+
+// Bitboards for the squares that must be empty in order to castle
+const InBetweenWhiteKingCastle = Bitboard(96)
+const InBetweenWhiteQueenCastle = Bitboard(14)
+const InBetweenBlackKingCastle = Bitboard(6917529027641081856)
+const InBetweenBlackQueenCastle = Bitboard(1008806316530991104)
 
 func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	var kingSquare square
@@ -61,6 +80,43 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 		*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 
 		kingMovesBB.ClearLeastSignificantBit()
+	}
+
+	// Check castling conditions: still have rights to castle, squares between rook and king are free,
+	// not under check, king will not move in or through an attacked position
+	if game.position.turn == WhiteColor {
+		if game.position.castleRights.WhiteKingSide &&
+			(InBetweenWhiteKingCastle&game.position.board.emptySquares == InBetweenWhiteKingCastle) &&
+			!game.position.board.IsUnderAttack(game, E1) &&
+			!game.position.board.IsUnderAttack(game, F1) &&
+			!game.position.board.IsUnderAttack(game, G1) {
+			*moves = append(*moves, &Move{from: E1, to: G1, flags: WhiteKingCastleFlag})
+		}
+
+		if game.position.castleRights.WhiteQueenSide &&
+			(InBetweenWhiteQueenCastle&game.position.board.emptySquares == InBetweenWhiteQueenCastle) &&
+			!game.position.board.IsUnderAttack(game, E1) &&
+			!game.position.board.IsUnderAttack(game, D1) &&
+			!game.position.board.IsUnderAttack(game, C1) {
+			*moves = append(*moves, &Move{from: E1, to: C1, flags: WhiteQueenCastleFlag})
+		}
+	} else {
+		if game.position.castleRights.BlackKingSide &&
+			(InBetweenBlackKingCastle&game.position.board.emptySquares == InBetweenBlackKingCastle) &&
+			!game.position.board.IsUnderAttack(game, E8) &&
+			!game.position.board.IsUnderAttack(game, F8) &&
+			!game.position.board.IsUnderAttack(game, G8) {
+			*moves = append(*moves, &Move{from: E8, to: G8, flags: BlackKingCastleFlag})
+		}
+
+		if game.position.castleRights.BlackQueenSide &&
+			(InBetweenBlackQueenCastle&game.position.board.emptySquares == InBetweenBlackQueenCastle) &&
+			!game.position.board.IsUnderAttack(game, E8) &&
+			!game.position.board.IsUnderAttack(game, D8) &&
+			!game.position.board.IsUnderAttack(game, C8) {
+			*moves = append(*moves, &Move{from: E8, to: C8, flags: BlackQueenCastleFlag})
+		}
+
 	}
 }
 
@@ -171,17 +227,17 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 
 func appendPawnMove(from square, to square, moves *[]*Move) {
 	if to > H7 {
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteBishop})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteKnight})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteRook})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteQueen})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteBishop, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteKnight, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteRook, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteQueen, flags: ResetHalfMoveClockFlag})
 	} else if to < A2 {
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackBishop})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackKnight})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackRook})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackQueen})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackBishop, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackKnight, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackRook, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackQueen, flags: ResetHalfMoveClockFlag})
 	} else {
-		*moves = append(*moves, &Move{from: from, to: to})
+		*moves = append(*moves, &Move{from: from, to: to, flags: ResetHalfMoveClockFlag})
 	}
 }
 

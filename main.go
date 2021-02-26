@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"time"
 
 	"github.com/ZaninAndrea/chess_engine/chessboard"
 )
@@ -12,10 +13,10 @@ func main() {
 
 	fmt.Print("\033[H\033[2J")
 	fmt.Println(game.Position())
-	rand.Seed(5)
+	rand.Seed(6)
 
 	for game.Result() == chessboard.NoResult {
-		// time.Sleep(1200 * time.Millisecond)
+		time.Sleep(800 * time.Millisecond)
 		moves := game.LegalMoves()
 		move := moves[rand.Intn(len(moves))]
 		game.Move(move)

@@ -156,85 +156,123 @@ func (b *Board) Move(move *Move) {
 		b.whiteSquares = b.whiteSquares & (^toBB)
 	}
 
+	// Move rook in castling
+	if move.IsCastle() {
+		if move.flags&WhiteKingCastleFlag != 0 {
+			b.bbWhiteRook |= F1.Bitboard()
+			b.bbWhiteRook &= ^H1.Bitboard()
+
+			b.whiteSquares |= F1.Bitboard()
+			b.whiteSquares &= ^H1.Bitboard()
+
+			b.emptySquares &= ^F1.Bitboard()
+			b.emptySquares |= H1.Bitboard()
+		} else if move.flags&WhiteQueenCastleFlag != 0 {
+			b.bbWhiteRook |= D1.Bitboard()
+			b.bbWhiteRook &= ^A1.Bitboard()
+
+			b.whiteSquares |= D1.Bitboard()
+			b.whiteSquares &= ^A1.Bitboard()
+
+			b.emptySquares &= ^D1.Bitboard()
+			b.emptySquares |= A1.Bitboard()
+		} else if move.flags&BlackKingCastleFlag != 0 {
+			b.bbBlackRook |= F8.Bitboard()
+			b.bbBlackRook &= ^H8.Bitboard()
+
+			b.blackSquares |= F8.Bitboard()
+			b.blackSquares &= ^H8.Bitboard()
+
+			b.emptySquares &= ^F8.Bitboard()
+			b.emptySquares |= H8.Bitboard()
+		} else if move.flags&BlackQueenCastleFlag != 0 {
+			b.bbBlackRook |= D8.Bitboard()
+			b.bbBlackRook &= ^A8.Bitboard()
+
+			b.blackSquares |= D8.Bitboard()
+			b.blackSquares &= ^A8.Bitboard()
+
+			b.emptySquares &= ^D8.Bitboard()
+			b.emptySquares |= A8.Bitboard()
+		}
+	}
+
 	// TODO: manage en passant captures
 }
 
-// IsInCheck returns whether the current board is in check
-func (board *Board) IsInCheck(game *Game) bool {
-	var kingSquare square
+// IsUnderAttack returns whether the current board is in check
+func (board *Board) IsUnderAttack(game *Game, sq square) bool {
 	var enemyKnights Bitboard
 	var enemyBishopLikes Bitboard
 	var enemyRookLikes Bitboard
 	var enemyKing Bitboard
 
 	if game.position.turn == WhiteColor {
-		kingSquare = board.whiteKingSquare
 		enemyKnights = board.bbBlackKnight
 		enemyBishopLikes = board.bbBlackBishop | board.bbBlackQueen
 		enemyRookLikes = board.bbBlackRook | board.bbBlackQueen
 		enemyKing = board.bbBlackKing
 	} else {
-		kingSquare = board.blackKingSquare
 		enemyKnights = board.bbWhiteKnight
 		enemyBishopLikes = board.bbWhiteBishop | board.bbWhiteQueen
 		enemyRookLikes = board.bbWhiteRook | board.bbWhiteQueen
 		enemyKing = board.bbWhiteKing
 	}
 
-	kingCollisions := game.precomputedData.KingMoves[kingSquare] & enemyKing
+	kingCollisions := game.precomputedData.KingMoves[sq] & enemyKing
 	if kingCollisions != 0 {
 		return true
 	}
 
 	// Simulate putting a knight in the square where the allied king is, if the simulated
 	// knight attacks an enemy knight then our king is in check by an enemy knight
-	knightCollisions := game.precomputedData.KnightMoves[kingSquare] & enemyKnights
+	knightCollisions := game.precomputedData.KnightMoves[sq] & enemyKnights
 	if knightCollisions != 0 {
 		return true
 	}
 
 	// Simulate rook and queens moving horizontally/vertically
-	blockers := (^board.emptySquares) & game.precomputedData.RookMasks[kingSquare]
-	key := (uint64(blockers) * game.precomputedData.RookMagics[kingSquare]) >> (64 - game.precomputedData.RookIndexBits[kingSquare])
-	rookCollisions := game.precomputedData.RookMoves[kingSquare][key] & enemyRookLikes
+	blockers := (^board.emptySquares) & game.precomputedData.RookMasks[sq]
+	key := (uint64(blockers) * game.precomputedData.RookMagics[sq]) >> (64 - game.precomputedData.RookIndexBits[sq])
+	rookCollisions := game.precomputedData.RookMoves[sq][key] & enemyRookLikes
 	if rookCollisions != 0 {
 		return true
 	}
 
 	// Simulate bishop and queens moving diagonally
-	blockers = (^board.emptySquares) & game.precomputedData.BishopMasks[kingSquare]
-	key = (uint64(blockers) * game.precomputedData.BishopMagics[kingSquare]) >> (64 - game.precomputedData.BishopIndexBits[kingSquare])
-	bishopCollisions := game.precomputedData.BishopMoves[kingSquare][key] & enemyBishopLikes
+	blockers = (^board.emptySquares) & game.precomputedData.BishopMasks[sq]
+	key = (uint64(blockers) * game.precomputedData.BishopMagics[sq]) >> (64 - game.precomputedData.BishopIndexBits[sq])
+	bishopCollisions := game.precomputedData.BishopMoves[sq][key] & enemyBishopLikes
 	if bishopCollisions != 0 {
 		return true
 	}
 
 	if game.position.turn == WhiteColor {
-		if kingSquare < H7 && kingSquare%8 != 0 {
-			upLeftSquare := (kingSquare + 7).Bitboard()
+		if sq < H7 && sq%8 != 0 {
+			upLeftSquare := (sq + 7).Bitboard()
 
 			if (board.bbBlackPawn & upLeftSquare) != 0 {
 				return true
 			}
 		}
 
-		if kingSquare < H7 && kingSquare%8 != 7 {
-			upRightSquare := (kingSquare + 9).Bitboard()
+		if sq < H7 && sq%8 != 7 {
+			upRightSquare := (sq + 9).Bitboard()
 
 			if (board.bbBlackPawn & upRightSquare) != 0 {
 				return true
 			}
 		}
 	} else {
-		if kingSquare > H2 && kingSquare%8 != 0 {
-			downLeftSquare := (kingSquare - 9).Bitboard()
+		if sq > H2 && sq%8 != 0 {
+			downLeftSquare := (sq - 9).Bitboard()
 
 			if (board.bbWhitePawn & downLeftSquare) != 0 {
 				return true
 			}
 		}
-		if kingSquare > H2 && kingSquare%8 != 7 {
-			downRightSquare := (kingSquare - 7).Bitboard()
+		if sq > H2 && sq%8 != 7 {
+			downRightSquare := (sq - 7).Bitboard()
 
 			if (board.bbWhitePawn & downRightSquare) != 0 {
 				return true
