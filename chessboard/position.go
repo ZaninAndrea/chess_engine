@@ -51,11 +51,40 @@ func (pos Position) String() string {
 }
 
 // Move returns a new position applying the move, the operation is NOT in place
-func (pos Position) Move(move Move) Position {
+func (pos Position) Move(move *Move) Position {
 	pos.board.Move(move)
 	pos.turn = pos.turn.Other()
 	pos.moveCount++
+
+	// TODO: captures should reset the half move clock
+	if (pos.board.bbWhitePawn|pos.board.bbBlackPawn)&move.to.Bitboard() != 0 {
+		pos.halfMoveClock = 0
+	} else {
+		pos.halfMoveClock++
+	}
 	pos.legalMoves = nil
+
+	// update castle rights
+	if move.from == E1 {
+		pos.castleRights.WhiteKingSide = false
+		pos.castleRights.WhiteQueenSide = false
+	}
+	if move.from == E8 {
+		pos.castleRights.BlackKingSide = false
+		pos.castleRights.BlackQueenSide = false
+	}
+	if move.from == A1 || move.to == A1 {
+		pos.castleRights.WhiteQueenSide = false
+	}
+	if move.from == A8 || move.to == A8 {
+		pos.castleRights.BlackQueenSide = false
+	}
+	if move.from == H1 || move.to == H1 {
+		pos.castleRights.WhiteKingSide = false
+	}
+	if move.from == H8 || move.to == H8 {
+		pos.castleRights.BlackKingSide = false
+	}
 
 	return pos
 }

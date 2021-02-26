@@ -37,75 +37,9 @@ func (game *Game) LegalMoves() []*Move {
 // Takes a pseudolegal move and checks whether is is also legal (will king be checked?)
 func checkMoveLegality(move *Move, game *Game) bool {
 	simulationBoard := game.position.board
-	simulationBoard.Move(*move)
+	simulationBoard.Move(move)
 
-	var kingSquare square
-	var enemyKnights Bitboard
-	var enemyBishopLikes Bitboard
-	var enemyRookLikes Bitboard
-	var enemyKing Bitboard
-
-	if game.position.turn == WhiteColor {
-		kingSquare = simulationBoard.whiteKingSquare
-		enemyKnights = simulationBoard.bbBlackKnight
-		enemyBishopLikes = simulationBoard.bbBlackBishop | simulationBoard.bbBlackQueen
-		enemyRookLikes = simulationBoard.bbBlackRook | simulationBoard.bbBlackQueen
-		enemyKing = simulationBoard.bbBlackKing
-	} else {
-		kingSquare = simulationBoard.blackKingSquare
-		enemyKnights = simulationBoard.bbWhiteKnight
-		enemyBishopLikes = simulationBoard.bbWhiteBishop | simulationBoard.bbWhiteQueen
-		enemyRookLikes = simulationBoard.bbWhiteRook | simulationBoard.bbWhiteQueen
-		enemyKing = simulationBoard.bbWhiteKing
-	}
-
-	kingCollisions := game.precomputedData.KingMoves[kingSquare] & enemyKing
-	if kingCollisions != 0 {
-		return false
-	}
-
-	// Simulate putting a knight in the square where the allied king is, if the simulated
-	// knight attacks an enemy knight then our king is in check by an enemy knight
-	knightCollisions := game.precomputedData.KnightMoves[kingSquare] & enemyKnights
-	if knightCollisions != 0 {
-		return false
-	}
-
-	// Simulate rook and queens moving horizontally/vertically
-	blockers := (^simulationBoard.emptySquares) & game.precomputedData.RookMasks[kingSquare]
-	key := (uint64(blockers) * game.precomputedData.RookMagics[kingSquare]) >> (64 - game.precomputedData.RookIndexBits[kingSquare])
-	rookCollisions := game.precomputedData.RookMoves[kingSquare][key] & enemyRookLikes
-	if rookCollisions != 0 {
-		return false
-	}
-
-	// Simulate bishop and queens moving diagonally
-	blockers = (^simulationBoard.emptySquares) & game.precomputedData.BishopMasks[kingSquare]
-	key = (uint64(blockers) * game.precomputedData.BishopMagics[kingSquare]) >> (64 - game.precomputedData.BishopIndexBits[kingSquare])
-	bishopCollisions := game.precomputedData.BishopMoves[kingSquare][key] & enemyBishopLikes
-	if bishopCollisions != 0 {
-		return false
-	}
-
-	if game.position.turn == WhiteColor {
-		upLeftSquare := (kingSquare + 7).Bitboard()
-		upRightSquare := (kingSquare + 9).Bitboard()
-
-		if ((simulationBoard.bbBlackPawn & upLeftSquare) != 0) ||
-			((simulationBoard.bbBlackPawn & upRightSquare) != 0) {
-			return false
-		}
-	} else {
-		downLeftSquare := (kingSquare - 9).Bitboard()
-		downRightSquare := (kingSquare - 7).Bitboard()
-
-		if ((simulationBoard.bbWhitePawn & downLeftSquare) != 0) ||
-			((simulationBoard.bbWhitePawn & downRightSquare) != 0) {
-			return false
-		}
-	}
-
-	return true
+	return !simulationBoard.IsInCheck(game)
 }
 
 func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {

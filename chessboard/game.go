@@ -2,11 +2,31 @@ package chessboard
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
 )
+
+type Result int
+
+const (
+	NoResult Result = iota
+	Draw
+	Checkmate
+)
+
+func (res Result) String() string {
+	switch res {
+	case NoResult:
+		return "NoResult"
+	case Draw:
+		return "Draw"
+	case Checkmate:
+		return "Checkmate"
+	default:
+		panic("Unknown result")
+	}
+}
 
 // PrecomputedData contains all the precalculated bitboards used in move generation
 type PrecomputedData struct {
@@ -27,15 +47,57 @@ type Game struct {
 	precomputedData  PrecomputedData
 	position         *Position
 	positionsHistory []*Position
-	moves            []Move
+	moves            []*Move
 }
 
-func (game Game) String() string {
-	return fmt.Sprint(game.moves)
+// Result returns the result of the current game
+func (game *Game) Result() Result {
+	// Check draws by insufficient material
+	if game.position.board.bbWhitePawn == 0 && game.position.board.bbBlackPawn == 0 &&
+		game.position.board.bbWhiteRook == 0 && game.position.board.bbBlackRook == 0 &&
+		game.position.board.bbWhiteQueen == 0 && game.position.board.bbBlackQueen == 0 {
+		knightsAndBishops := game.position.board.bbWhiteBishop | game.position.board.bbBlackBishop |
+			game.position.board.bbWhiteKnight | game.position.board.bbBlackKnight
+
+		// King vs King, King+Bishop vs King, King+Knight vs King
+		if knightsAndBishops.KernighanPopCount() <= 1 {
+			return Draw
+		}
+
+		// King+Bishop vs King+Bishop with Bishops on the same colour
+		knights := game.position.board.bbWhiteKnight | game.position.board.bbBlackKnight
+		if knights.KernighanPopCount() == 0 &&
+			game.position.board.bbWhiteBishop.KernighanPopCount() == 1 &&
+			game.position.board.bbBlackBishop.KernighanPopCount() == 1 {
+			whiteBishopSquare := square(game.position.board.bbWhiteBishop.LeastSignificantBit())
+			blackBishopSquare := square(game.position.board.bbBlackBishop.LeastSignificantBit())
+
+			if whiteBishopSquare.Color() == blackBishopSquare.Color() {
+				return Draw
+			}
+		}
+	}
+
+	// Draw by 75 moves rule
+	if game.position.halfMoveClock >= 75 {
+		return Draw
+	}
+
+	legalMoves := game.LegalMoves()
+	if len(legalMoves) == 0 {
+		if game.position.board.IsInCheck(game) {
+			return Checkmate
+		}
+
+		// Stalemate
+		return Draw
+	}
+
+	return NoResult
 }
 
 // Move applies a move in the game
-func (game *Game) Move(move Move) {
+func (game *Game) Move(move *Move) {
 	pos := game.position.Move(move)
 	game.position = &pos
 	game.positionsHistory = append(game.positionsHistory, game.position)
@@ -79,9 +141,9 @@ func NewGame() Game {
 // NewGameFromFEN initializes a game from a fen string
 func NewGameFromFEN(fen string) Game {
 	game := Game{}
-	game.LoadPrecomputedData("./precomputed.json")
-	game.positionsHistory = []*Position{}
-	game.moves = []Move{}
+	game.LoadPrecomputedData("/Users/andreazanin/Code/go/chess_engine/precomputed.json")
+	game.positionsHistory = make([]*Position, 0, 40)
+	game.moves = make([]*Move, 0, 40)
 	pos := Position{}
 	game.position = &pos
 
