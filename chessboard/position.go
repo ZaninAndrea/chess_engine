@@ -85,5 +85,12 @@ func (pos Position) Move(move *Move) Position {
 		pos.castleRights.BlackKingSide = false
 	}
 
+	// update en passant square
+	if move.IsDoublePawnPush() {
+		pos.enPassantSquare = (move.to + move.from) / 2
+	} else {
+		pos.enPassantSquare = NoSquare
+	}
+
 	return pos
 }

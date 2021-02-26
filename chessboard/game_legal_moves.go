@@ -163,7 +163,10 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if fromSquare < A3 {
 					forwardSquare := square(fromSquare + 16)
 					if game.position.board.emptySquares.IsSquareOccupied(forwardSquare) {
-						appendPawnMove(fromSquare, forwardSquare, moves)
+						*moves = append(*moves, &Move{
+							from:  fromSquare,
+							to:    forwardSquare,
+							flags: ResetHalfMoveClockFlag | DoublePawnPushFlag})
 					}
 				}
 			}
@@ -173,6 +176,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				captureSquare := square(fromSquare + 7)
 				if game.position.board.blackSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
+				} else if game.position.enPassantSquare == captureSquare {
+					*moves = append(*moves, &Move{
+						from:  fromSquare,
+						to:    captureSquare,
+						flags: ResetHalfMoveClockFlag | WhiteEnPassantFlag})
 				}
 			}
 
@@ -181,6 +189,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				captureSquare := square(fromSquare + 9)
 				if game.position.board.blackSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
+				} else if game.position.enPassantSquare == captureSquare {
+					*moves = append(*moves, &Move{
+						from:  fromSquare,
+						to:    captureSquare,
+						flags: ResetHalfMoveClockFlag | WhiteEnPassantFlag})
 				}
 			}
 		}
@@ -201,7 +214,10 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if fromSquare > H6 {
 					forwardSquare := square(fromSquare - 16)
 					if game.position.board.emptySquares.IsSquareOccupied(forwardSquare) {
-						appendPawnMove(fromSquare, forwardSquare, moves)
+						*moves = append(*moves, &Move{
+							from:  fromSquare,
+							to:    forwardSquare,
+							flags: ResetHalfMoveClockFlag | DoublePawnPushFlag})
 					}
 				}
 			}
@@ -211,6 +227,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				captureSquare := square(fromSquare - 9)
 				if game.position.board.whiteSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
+				} else if game.position.enPassantSquare == captureSquare {
+					*moves = append(*moves, &Move{
+						from:  fromSquare,
+						to:    captureSquare,
+						flags: ResetHalfMoveClockFlag | BlackEnPassantFlag})
 				}
 			}
 
@@ -219,6 +240,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				captureSquare := square(fromSquare - 7)
 				if game.position.board.whiteSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
+				} else if game.position.enPassantSquare == captureSquare {
+					*moves = append(*moves, &Move{
+						from:  fromSquare,
+						to:    captureSquare,
+						flags: ResetHalfMoveClockFlag | BlackEnPassantFlag})
 				}
 			}
 		}

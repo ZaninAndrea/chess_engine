@@ -197,7 +197,22 @@ func (b *Board) Move(move *Move) {
 		}
 	}
 
-	// TODO: manage en passant captures
+	// capture en passant pawn
+	if move.IsEnPassant() {
+		if move.flags&WhiteEnPassantFlag != 0 {
+			blackPawnPosition := (move.to - 8).Bitboard()
+
+			b.bbBlackPawn &= ^blackPawnPosition
+			b.blackSquares &= ^blackPawnPosition
+			b.emptySquares |= blackPawnPosition
+		} else {
+			whitePawnPosition := (move.to + 8).Bitboard()
+
+			b.bbWhitePawn &= ^whitePawnPosition
+			b.whiteSquares &= ^whitePawnPosition
+			b.emptySquares |= whitePawnPosition
+		}
+	}
 }
 
 // IsUnderAttack returns whether the current board is in check

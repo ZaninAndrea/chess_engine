@@ -10,11 +10,14 @@ const (
 	WhiteQueenCastleFlag
 	BlackKingCastleFlag
 	BlackQueenCastleFlag
-	EnPassantFlag
+	WhiteEnPassantFlag
+	BlackEnPassantFlag
+	DoublePawnPushFlag
 )
 
 // CastlesFlag is a mask to check whether any of the castles flags is set
 const CastlesMask = WhiteKingCastleFlag | WhiteQueenCastleFlag | BlackKingCastleFlag | BlackQueenCastleFlag
+const EnPassantMask = WhiteEnPassantFlag | BlackEnPassantFlag
 
 // Move contains the informations about a move
 type Move struct {
@@ -39,5 +42,9 @@ func (m *Move) IsCastle() bool {
 	return m.flags&CastlesMask != 0
 }
 func (m *Move) IsEnPassant() bool {
-	return m.flags&EnPassantFlag != 0
+	return m.flags&EnPassantMask != 0
+}
+
+func (m *Move) IsDoublePawnPush() bool {
+	return m.flags&DoublePawnPushFlag != 0
 }
