@@ -11,34 +11,41 @@ func (b Bitboard) KernighanPopCount() int {
 		return 0
 	}
 
+	count := 1
 	bb := b & (b - 1) // clear the least significant bit
-	return bb.KernighanPopCount() + 1
+
+	for bb != 0 {
+		bb = bb & (bb - 1)
+		count++
+	}
+
+	return count
 }
 
 // ParallelPopCount counts the 1 bits in the bitboard with a divide and conquer algorithm,
 // this method is efficient for densely populated bitboards
 func (b Bitboard) ParallelPopCount() int {
-	var maskDuos uint64 = 0x5555555555555555    // in binary 0101010101...
-	var maskNibbles uint64 = 0x3333333333333333 // in binary 00110011...
-	var maskBytes uint64 = 0x0f0f0f0f0f0f0f0f   // in binary 0000111100001111...
-	var factor uint64 = 0x0101010101010101      // the sum of 256 to the power of 0,1,2,3...
+	var maskDuos Bitboard = 0x5555555555555555    // in binary 0101010101...
+	var maskNibbles Bitboard = 0x3333333333333333 // in binary 00110011...
+	var maskBytes Bitboard = 0x0f0f0f0f0f0f0f0f   // in binary 0000111100001111...
+	var factor Bitboard = 0x0101010101010101      // the sum of 256 to the power of 0,1,2,3...
 
-	bb := uint64(b) - (uint64(b)>>1)&maskDuos           // count bits in each duo
-	bb = (bb & maskNibbles) + ((bb >> 2) & maskNibbles) // count bits in each nibble
-	bb = (bb + (bb >> 4)) & maskBytes                   // count bits in each byte
+	b = b - (b>>1)&maskDuos                          // count bits in each duo
+	b = (b & maskNibbles) + ((b >> 2) & maskNibbles) // count bits in each nibble
+	b = (b + (b >> 4)) & maskBytes                   // count bits in each byte
 
 	// use a multiplication to sum all the bytes count, the result
 	// can be read from the 8 most significant bits,
 	// on processors with fast multiplication this is faster
 	// than continuing with the previous pattern
-	return int((bb * factor) >> 56)
+	return int((b * factor) >> 56)
 }
 
 // LeastSignificantBit computes the index of the Least Significant Bit assuming that the bitboard is not empty
 func (b Bitboard) LeastSignificantBit() int {
 	// We can leverage the two-complement representation to rapidly generate
 	// a bitboard with only the bits preceding the Least Significant Bit set as 1
-	return ((b & -b) - 1).ParallelPopCount()
+	return (b ^ (b - 1)).ParallelPopCount()
 }
 
 // ClearLeastSignificantBit set the least significant 1-bit to 0

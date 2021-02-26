@@ -13,7 +13,7 @@ func main() {
 
 	fmt.Print("\033[H\033[2J")
 	fmt.Println(game.Position())
-	rand.Seed(6)
+	rand.Seed(1)
 
 	for game.Result() == chessboard.NoResult {
 		time.Sleep(800 * time.Millisecond)
