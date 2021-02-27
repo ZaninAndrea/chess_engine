@@ -30,8 +30,8 @@ func (b *Board) FillSupportBitboards() {
 	b.blackSquares = b.bbBlackKing | b.bbBlackQueen | b.bbBlackRook |
 		b.bbBlackBishop | b.bbBlackKnight | b.bbBlackPawn
 	b.emptySquares = ^(b.whiteSquares | b.blackSquares)
-	b.whiteKingSquare = square(b.bbWhiteKing.LeastSignificantBit())
-	b.blackKingSquare = square(b.bbBlackKing.LeastSignificantBit())
+	b.whiteKingSquare = square(b.bbWhiteKing.LeastSignificant1Bit())
+	b.blackKingSquare = square(b.bbBlackKing.LeastSignificant1Bit())
 }
 
 // Piece returns the piece in a given square of the board
@@ -149,10 +149,10 @@ func (b *Board) Move(move *Move) {
 	// Update summary bitboards
 	b.emptySquares = (b.emptySquares | fromBB) & (^toBB)
 	if piece.Color() == WhiteColor {
-		b.whiteSquares = (b.whiteSquares | toBB) & (^fromBB)
+		b.whiteSquares = (b.whiteSquares | toBB) ^ fromBB
 		b.blackSquares = b.blackSquares & (^toBB)
 	} else {
-		b.blackSquares = (b.blackSquares | toBB) & (^fromBB)
+		b.blackSquares = (b.blackSquares | toBB) ^ fromBB
 		b.whiteSquares = b.whiteSquares & (^toBB)
 	}
 
@@ -160,39 +160,39 @@ func (b *Board) Move(move *Move) {
 	if move.IsCastle() {
 		if move.flags&WhiteKingCastleFlag != 0 {
 			b.bbWhiteRook |= F1.Bitboard()
-			b.bbWhiteRook &= ^H1.Bitboard()
+			b.bbWhiteRook ^= H1.Bitboard()
 
 			b.whiteSquares |= F1.Bitboard()
-			b.whiteSquares &= ^H1.Bitboard()
+			b.whiteSquares ^= H1.Bitboard()
 
-			b.emptySquares &= ^F1.Bitboard()
+			b.emptySquares ^= F1.Bitboard()
 			b.emptySquares |= H1.Bitboard()
 		} else if move.flags&WhiteQueenCastleFlag != 0 {
 			b.bbWhiteRook |= D1.Bitboard()
-			b.bbWhiteRook &= ^A1.Bitboard()
+			b.bbWhiteRook ^= A1.Bitboard()
 
 			b.whiteSquares |= D1.Bitboard()
-			b.whiteSquares &= ^A1.Bitboard()
+			b.whiteSquares ^= A1.Bitboard()
 
-			b.emptySquares &= ^D1.Bitboard()
+			b.emptySquares ^= D1.Bitboard()
 			b.emptySquares |= A1.Bitboard()
 		} else if move.flags&BlackKingCastleFlag != 0 {
 			b.bbBlackRook |= F8.Bitboard()
-			b.bbBlackRook &= ^H8.Bitboard()
+			b.bbBlackRook ^= H8.Bitboard()
 
 			b.blackSquares |= F8.Bitboard()
-			b.blackSquares &= ^H8.Bitboard()
+			b.blackSquares ^= H8.Bitboard()
 
-			b.emptySquares &= ^F8.Bitboard()
+			b.emptySquares ^= F8.Bitboard()
 			b.emptySquares |= H8.Bitboard()
 		} else if move.flags&BlackQueenCastleFlag != 0 {
 			b.bbBlackRook |= D8.Bitboard()
-			b.bbBlackRook &= ^A8.Bitboard()
+			b.bbBlackRook ^= A8.Bitboard()
 
 			b.blackSquares |= D8.Bitboard()
-			b.blackSquares &= ^A8.Bitboard()
+			b.blackSquares ^= A8.Bitboard()
 
-			b.emptySquares &= ^D8.Bitboard()
+			b.emptySquares ^= D8.Bitboard()
 			b.emptySquares |= A8.Bitboard()
 		}
 	}
@@ -202,14 +202,14 @@ func (b *Board) Move(move *Move) {
 		if move.flags&WhiteEnPassantFlag != 0 {
 			blackPawnPosition := (move.to - 8).Bitboard()
 
-			b.bbBlackPawn &= ^blackPawnPosition
-			b.blackSquares &= ^blackPawnPosition
+			b.bbBlackPawn ^= blackPawnPosition
+			b.blackSquares ^= blackPawnPosition
 			b.emptySquares |= blackPawnPosition
 		} else {
 			whitePawnPosition := (move.to + 8).Bitboard()
 
-			b.bbWhitePawn &= ^whitePawnPosition
-			b.whiteSquares &= ^whitePawnPosition
+			b.bbWhitePawn ^= whitePawnPosition
+			b.whiteSquares ^= whitePawnPosition
 			b.emptySquares |= whitePawnPosition
 		}
 	}
@@ -296,5 +296,4 @@ func (board *Board) IsUnderAttack(game *Game, sq square) bool {
 	}
 
 	return false
-
 }

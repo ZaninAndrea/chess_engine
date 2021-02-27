@@ -24,67 +24,111 @@ func TestKernighanPopCount(t *testing.T) {
 	}
 }
 
-// TestParallelPopCount checks that ParallelPopCount computes the correct counts
-func TestParallelPopCount(t *testing.T) {
-	b := Bitboard(0b01110101)
-	got := b.ParallelPopCount()
+func BenchmarkKernighanPopCount64Bits(b *testing.B) {
+	bb := ^Bitboard(0)
 
-	if got != 5 {
-		t.Errorf("ParallelCount for 0b01110101 should be 5, %d was returned instead", got)
+	for i := 0; i < b.N; i++ {
+		bb.KernighanPopCount()
 	}
+}
+func BenchmarkKernighanPopCount1Bits(b *testing.B) {
+	bb := Bitboard(1)
 
-	b = Bitboard(0)
-	got = b.ParallelPopCount()
-	if got != 0 {
-		t.Errorf("ParallelCount for 0 should be 0, %d was returned instead", got)
-	}
-
-	b = E3.Bitboard()
-	got = b.ParallelPopCount()
-	if got != 1 {
-		t.Errorf("ParallelCount for Square bitboard should be 1, %d was returned instead", got)
+	for i := 0; i < b.N; i++ {
+		bb.KernighanPopCount()
 	}
 }
 
-func TestLeastSignificantBit(t *testing.T) {
+// TestPopCount checks that PopCount computes the correct counts
+func TestPopCount(t *testing.T) {
+	t.Run("BB=0b01110101", func(t *testing.T) {
+		b := Bitboard(0b01110101)
+		got := b.PopCount()
+
+		if got != 5 {
+			t.Errorf("ParallelCount for 0b01110101 should be 5, %d was returned instead", got)
+		}
+	})
+
+	t.Run("BB=0", func(t *testing.T) {
+		b := Bitboard(0)
+		got := b.PopCount()
+		if got != 0 {
+			t.Errorf("ParallelCount for 0 should be 0, %d was returned instead", got)
+		}
+	})
+
+	t.Run("BB=E3", func(t *testing.T) {
+		b := E3.Bitboard()
+		got := b.PopCount()
+		if got != 1 {
+			t.Errorf("ParallelCount for Square bitboard should be 1, %d was returned instead", got)
+		}
+	})
+}
+
+func BenchmarkPopCount64Bits(b *testing.B) {
+	bb := ^Bitboard(0)
+
+	for i := 0; i < b.N; i++ {
+		bb.PopCount()
+	}
+}
+func BenchmarkPopCount1Bits(b *testing.B) {
+	bb := Bitboard(1)
+
+	for i := 0; i < b.N; i++ {
+		bb.PopCount()
+	}
+}
+
+func TestLeastSignificant1Bit(t *testing.T) {
 	b := Bitboard(0b01110101)
-	got := b.LeastSignificantBit()
+	got := b.LeastSignificant1Bit()
 
 	if got != 0 {
-		t.Errorf("LeastSignificantBit for 0b01110101 should be 0, %d was returned instead", got)
+		t.Errorf("LeastSignificant1Bit for 0b01110101 should be 0, %d was returned instead", got)
 	}
 
 	b = Bitboard(0b1110000)
-	got = b.LeastSignificantBit()
+	got = b.LeastSignificant1Bit()
 	if got != 4 {
-		t.Errorf("LeastSignificantBit for 0b1110000 should be 4, %d was returned instead", got)
+		t.Errorf("LeastSignificant1Bit for 0b1110000 should be 4, %d was returned instead", got)
 	}
 
 	b = E3.Bitboard()
-	got = b.LeastSignificantBit()
+	got = b.LeastSignificant1Bit()
 	if got != 20 {
-		t.Errorf("LeastSignificantBit for E3 bitboard should be 20, %d was returned instead", got)
+		t.Errorf("LeastSignificant1Bit for E3 bitboard should be 20, %d was returned instead", got)
 	}
 }
 
-func TestClearLeastSignificantBit(t *testing.T) {
+func BenchmarkLeastSignificantBit(b *testing.B) {
+	bb := Bitboard(0x10010)
+
+	for i := 0; i < b.N; i++ {
+		bb.LeastSignificant1Bit()
+	}
+}
+
+func TestClearLeastSignificant1Bit(t *testing.T) {
 	b := Bitboard(0b01110101)
-	b.ClearLeastSignificantBit()
+	b.ClearLeastSignificant1Bit()
 
 	if b != Bitboard(0b01110100) {
-		t.Errorf("ClearLeastSignificantBit for 0b01110101 should leave 0b01110100, %d was returned instead", b)
+		t.Errorf("ClearLeastSignificant1Bit for 0b01110101 should leave 0b01110100, %d was returned instead", b)
 	}
 
 	b = Bitboard(0b1110000)
-	b.ClearLeastSignificantBit()
+	b.ClearLeastSignificant1Bit()
 	if b != Bitboard(0b1100000) {
-		t.Errorf("ClearLeastSignificantBit for 0b1110000 should leave 0b1100000, %d was returned instead", b)
+		t.Errorf("ClearLeastSignificant1Bit for 0b1110000 should leave 0b1100000, %d was returned instead", b)
 	}
 
 	b = E3.Bitboard()
-	b.ClearLeastSignificantBit()
+	b.ClearLeastSignificant1Bit()
 	if b != 0 {
-		t.Errorf("ClearLeastSignificantBit for Square should leave 0, %d was returned instead", b)
+		t.Errorf("ClearLeastSignificant1Bit for Square should leave 0, %d was returned instead", b)
 	}
 }
 
@@ -103,5 +147,13 @@ func TestIsSquareOccupied(t *testing.T) {
 	b = F7.Bitboard()
 	if b.IsSquareOccupied(G1) {
 		t.Errorf("IsSquareOccupied(G1) for F7 bitboard should return false")
+	}
+}
+
+func BenchmarkIsSquareOccupied(b *testing.B) {
+	bb := F7.Bitboard()
+
+	for i := 0; i < b.N; i++ {
+		bb.IsSquareOccupied(G1)
 	}
 }

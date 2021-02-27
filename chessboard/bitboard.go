@@ -5,7 +5,8 @@ package chessboard
 type Bitboard uint64
 
 // KernighanPopCount counts the 1 bits in the bitboard with Khernighan's algorithm,
-// this method is efficient for sparsely populated bitboards
+// this method is implemented for comparison, but due to compiler optimizations
+// it is always slower than the reference PopCount
 func (b Bitboard) KernighanPopCount() int {
 	if b == 0 {
 		return 0
@@ -22,14 +23,12 @@ func (b Bitboard) KernighanPopCount() int {
 	return count
 }
 
-// ParallelPopCount counts the 1 bits in the bitboard with a divide and conquer algorithm,
-// this method is efficient for densely populated bitboards
-func (b Bitboard) ParallelPopCount() int {
-	var maskDuos Bitboard = 0x5555555555555555    // in binary 0101010101...
-	var maskNibbles Bitboard = 0x3333333333333333 // in binary 00110011...
-	var maskBytes Bitboard = 0x0f0f0f0f0f0f0f0f   // in binary 0000111100001111...
-	var factor Bitboard = 0x0101010101010101      // the sum of 256 to the power of 0,1,2,3...
-
+const maskDuos Bitboard = 0x5555555555555555    // in binary 0101010101...
+const maskNibbles Bitboard = 0x3333333333333333 // in binary 00110011...
+const maskBytes Bitboard = 0x0f0f0f0f0f0f0f0f   // in binary 0000111100001111...
+const factor Bitboard = 0x0101010101010101      // the sum of 256 to the power of 0,1,2,3...
+// PopCount counts the 1 bits in the bitboard with a divide and conquer algorithm
+func (b Bitboard) PopCount() int {
 	b = b - (b>>1)&maskDuos                          // count bits in each duo
 	b = (b & maskNibbles) + ((b >> 2) & maskNibbles) // count bits in each nibble
 	b = (b + (b >> 4)) & maskBytes                   // count bits in each byte
@@ -41,15 +40,15 @@ func (b Bitboard) ParallelPopCount() int {
 	return int((b * factor) >> 56)
 }
 
-// LeastSignificantBit computes the index of the Least Significant Bit assuming that the bitboard is not empty
-func (b Bitboard) LeastSignificantBit() int {
+// LeastSignificant1Bit computes the index of the Least Significant Bit assuming that the bitboard is not empty
+func (b Bitboard) LeastSignificant1Bit() int {
 	// We can leverage the two-complement representation to rapidly generate
 	// a bitboard with only the bits preceding the Least Significant Bit set as 1
-	return (b ^ (b - 1)).ParallelPopCount()
+	return (b ^ (b - 1)).PopCount() - 1
 }
 
-// ClearLeastSignificantBit set the least significant 1-bit to 0
-func (b *Bitboard) ClearLeastSignificantBit() {
+// ClearLeastSignificant1Bit set the least significant 1-bit to 0
+func (b *Bitboard) ClearLeastSignificant1Bit() {
 	*b = *b & (*b - 1)
 }
 

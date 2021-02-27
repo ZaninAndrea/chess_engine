@@ -60,17 +60,17 @@ func (game *Game) Result() Result {
 			game.position.board.bbWhiteKnight | game.position.board.bbBlackKnight
 
 		// King vs King, King+Bishop vs King, King+Knight vs King
-		if knightsAndBishops.KernighanPopCount() <= 1 {
+		if knightsAndBishops.PopCount() <= 1 {
 			return Draw
 		}
 
 		// King+Bishop vs King+Bishop with Bishops on the same colour
 		knights := game.position.board.bbWhiteKnight | game.position.board.bbBlackKnight
-		if knights.KernighanPopCount() == 0 &&
-			game.position.board.bbWhiteBishop.KernighanPopCount() == 1 &&
-			game.position.board.bbBlackBishop.KernighanPopCount() == 1 {
-			whiteBishopSquare := square(game.position.board.bbWhiteBishop.LeastSignificantBit())
-			blackBishopSquare := square(game.position.board.bbBlackBishop.LeastSignificantBit())
+		if knights.PopCount() == 0 &&
+			game.position.board.bbWhiteBishop.PopCount() == 1 &&
+			game.position.board.bbBlackBishop.PopCount() == 1 {
+			whiteBishopSquare := square(game.position.board.bbWhiteBishop.LeastSignificant1Bit())
+			blackBishopSquare := square(game.position.board.bbBlackBishop.LeastSignificant1Bit())
 
 			if whiteBishopSquare.Color() == blackBishopSquare.Color() {
 				return Draw

@@ -76,10 +76,10 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	// Iterating target squares in the bitboard and add moves to the list
 	fromSquare := kingSquare
 	for kingMovesBB != 0 {
-		toSquare := square(kingMovesBB.LeastSignificantBit())
+		toSquare := square(kingMovesBB.LeastSignificant1Bit())
 		*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 
-		kingMovesBB.ClearLeastSignificantBit()
+		kingMovesBB.ClearLeastSignificant1Bit()
 	}
 
 	// Check castling conditions: still have rights to castle, squares between rook and king are free,
@@ -129,16 +129,16 @@ func computeKnightMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	}
 
 	for knights != 0 {
-		fromSquare := square(knights.LeastSignificantBit())
-		knights.ClearLeastSignificantBit()
+		fromSquare := square(knights.LeastSignificant1Bit())
+		knights.ClearLeastSignificant1Bit()
 
 		// Get precomputed king moves for that square and remove self-captures
 		knightMovesBB := game.precomputedData.KnightMoves[fromSquare]
 		knightMovesBB &^= *ownPieces
 
 		for knightMovesBB != 0 {
-			toSquare := square(knightMovesBB.LeastSignificantBit())
-			knightMovesBB.ClearLeastSignificantBit()
+			toSquare := square(knightMovesBB.LeastSignificant1Bit())
+			knightMovesBB.ClearLeastSignificant1Bit()
 
 			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 		}
@@ -151,8 +151,8 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 
 		// iterate all white pawns on the board
 		for pawns != 0 {
-			fromSquare := square(pawns.LeastSignificantBit())
-			pawns.ClearLeastSignificantBit()
+			fromSquare := square(pawns.LeastSignificant1Bit())
+			pawns.ClearLeastSignificant1Bit()
 
 			// Move forward
 			forwardSquare := square(fromSquare + 8)
@@ -202,8 +202,8 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 
 		// iterate all black pawns on the board
 		for pawns != 0 {
-			fromSquare := square(pawns.LeastSignificantBit())
-			pawns.ClearLeastSignificantBit()
+			fromSquare := square(pawns.LeastSignificant1Bit())
+			pawns.ClearLeastSignificant1Bit()
 
 			// Move forward
 			forwardSquare := square(fromSquare - 8)
@@ -276,8 +276,8 @@ func computeRookMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	}
 
 	for rooks != 0 {
-		fromSquare := square(rooks.LeastSignificantBit())
-		rooks.ClearLeastSignificantBit()
+		fromSquare := square(rooks.LeastSignificant1Bit())
+		rooks.ClearLeastSignificant1Bit()
 
 		blockers := (^game.position.board.emptySquares) & game.precomputedData.RookMasks[fromSquare]
 
@@ -290,8 +290,8 @@ func computeRookMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 		rookMovesBB &^= *ownPieces
 
 		for rookMovesBB != 0 {
-			toSquare := square(rookMovesBB.LeastSignificantBit())
-			rookMovesBB.ClearLeastSignificantBit()
+			toSquare := square(rookMovesBB.LeastSignificant1Bit())
+			rookMovesBB.ClearLeastSignificant1Bit()
 
 			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 		}
@@ -307,8 +307,8 @@ func computeBishopMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	}
 
 	for bishops != 0 {
-		fromSquare := square(bishops.LeastSignificantBit())
-		bishops.ClearLeastSignificantBit()
+		fromSquare := square(bishops.LeastSignificant1Bit())
+		bishops.ClearLeastSignificant1Bit()
 
 		blockers := (^game.position.board.emptySquares) & game.precomputedData.BishopMasks[fromSquare]
 
@@ -321,8 +321,8 @@ func computeBishopMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 		bishopMovesBB &^= *ownPieces
 
 		for bishopMovesBB != 0 {
-			toSquare := square(bishopMovesBB.LeastSignificantBit())
-			bishopMovesBB.ClearLeastSignificantBit()
+			toSquare := square(bishopMovesBB.LeastSignificant1Bit())
+			bishopMovesBB.ClearLeastSignificant1Bit()
 
 			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 		}
@@ -339,8 +339,8 @@ func computeQueenMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 
 	// Compute the moves of each queen by considering both rook and bishop moves
 	for queens != 0 {
-		fromSquare := square(queens.LeastSignificantBit())
-		queens.ClearLeastSignificantBit()
+		fromSquare := square(queens.LeastSignificant1Bit())
+		queens.ClearLeastSignificant1Bit()
 
 		blockersBishop := (^game.position.board.emptySquares) & game.precomputedData.BishopMasks[fromSquare]
 		blockersRook := (^game.position.board.emptySquares) & game.precomputedData.RookMasks[fromSquare]
@@ -358,8 +358,8 @@ func computeQueenMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 		queenMovesBB &^= *ownPieces
 
 		for queenMovesBB != 0 {
-			toSquare := square(queenMovesBB.LeastSignificantBit())
-			queenMovesBB.ClearLeastSignificantBit()
+			toSquare := square(queenMovesBB.LeastSignificant1Bit())
+			queenMovesBB.ClearLeastSignificant1Bit()
 
 			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
 		}
