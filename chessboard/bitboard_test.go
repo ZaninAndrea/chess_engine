@@ -1,6 +1,9 @@
 package chessboard
 
-import "testing"
+import (
+	"math/bits"
+	"testing"
+)
 
 // TestKernighanPopCount checks that KernighanPopCount computes the correct counts
 func TestKernighanPopCount(t *testing.T) {
@@ -82,6 +85,49 @@ func BenchmarkPopCount1Bits(b *testing.B) {
 	}
 }
 
+// TestPopCount checks that PopCount computes the correct counts
+func TestPopCountNoMultiply(t *testing.T) {
+	t.Run("BB=0b01110101", func(t *testing.T) {
+		b := Bitboard(0b01110101)
+		got := b.PopCountNoMultiply()
+
+		if got != 5 {
+			t.Errorf("PopCountNoMultiply for 0b01110101 should be 5, %d was returned instead", got)
+		}
+	})
+
+	t.Run("BB=0", func(t *testing.T) {
+		b := Bitboard(0)
+		got := b.PopCountNoMultiply()
+		if got != 0 {
+			t.Errorf("PopCountNoMultiply for 0 should be 0, %d was returned instead", got)
+		}
+	})
+
+	t.Run("BB=E3", func(t *testing.T) {
+		b := E3.Bitboard()
+		got := b.PopCountNoMultiply()
+		if got != 1 {
+			t.Errorf("PopCountNoMultiply for Square bitboard should be 1, %d was returned instead", got)
+		}
+	})
+}
+
+func BenchmarkPopCountNoMultiply64Bits(b *testing.B) {
+	bb := ^Bitboard(0)
+
+	for i := 0; i < b.N; i++ {
+		bb.PopCount()
+	}
+}
+func BenchmarkPopCountNoMultiply1Bits(b *testing.B) {
+	bb := Bitboard(1)
+
+	for i := 0; i < b.N; i++ {
+		bb.PopCount()
+	}
+}
+
 func TestLeastSignificant1Bit(t *testing.T) {
 	b := Bitboard(0b01110101)
 	got := b.LeastSignificant1Bit()
@@ -103,11 +149,19 @@ func TestLeastSignificant1Bit(t *testing.T) {
 	}
 }
 
-func BenchmarkLeastSignificantBit(b *testing.B) {
+func BenchmarkLeastSignificant1BitPopCount(b *testing.B) {
 	bb := Bitboard(0x10010)
 
 	for i := 0; i < b.N; i++ {
 		bb.LeastSignificant1Bit()
+	}
+}
+
+func BenchmarkLeastSignificant1BitDebruijn(b *testing.B) {
+	bb := Bitboard(0x10010)
+
+	for i := 0; i < b.N; i++ {
+		bits.TrailingZeros64(uint64(bb))
 	}
 }
 

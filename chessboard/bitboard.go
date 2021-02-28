@@ -40,6 +40,17 @@ func (b Bitboard) PopCount() int {
 	return int((b * factor) >> 56)
 }
 
+// PopCountNoMultiply implements pop count without using a multiplication
+func (b Bitboard) PopCountNoMultiply() int {
+	b -= (b >> 1) & maskDuos
+	b = (b & maskNibbles) + ((b >> 2) & maskNibbles)
+	b = (b + (b >> 4)) & maskBytes
+	b += b >> 8
+	b += b >> 16
+	b += b >> 32
+	return int(b & 0x7f)
+}
+
 // LeastSignificant1Bit computes the index of the Least Significant Bit assuming that the bitboard is not empty
 func (b Bitboard) LeastSignificant1Bit() int {
 	// We can leverage the two-complement representation to rapidly generate
