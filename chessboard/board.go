@@ -82,13 +82,22 @@ func (b Board) String() string {
 }
 
 // Move updates the boarding moving the piece in the starting square to the target square
-// it also captures the square in the target square if needed
-func (b *Board) Move(move *Move) {
+// it also captures the square in the target square if needed.
+// Returns the update to the zobrist hash
+func (b *Board) Move(move *Move) uint64 {
 	var piece Piece
+	var hash uint64
 	if move.promotion != NoPiece {
 		piece = move.promotion
+		hash = zobristHashMoves[b.Piece(move.from)-1][move.from] ^ zobristHashMoves[piece-1][move.to]
 	} else {
 		piece = b.Piece(move.from)
+		hash = zobristHashMoves[piece-1][move.from] ^ zobristHashMoves[piece-1][move.to]
+	}
+
+	targetPiece := b.Piece(move.to)
+	if targetPiece != NoPiece {
+		hash ^= zobristHashMoves[targetPiece-1][move.to]
 	}
 
 	fromBB := move.from.Bitboard()
@@ -167,6 +176,8 @@ func (b *Board) Move(move *Move) {
 
 			b.emptySquares ^= F1.Bitboard()
 			b.emptySquares |= H1.Bitboard()
+
+			hash ^= zobristHashMoves[WhiteRook-1][F1] ^ zobristHashMoves[WhiteRook-1][H1]
 		} else if move.flags&WhiteQueenCastleFlag != 0 {
 			b.bbWhiteRook |= D1.Bitboard()
 			b.bbWhiteRook ^= A1.Bitboard()
@@ -176,6 +187,8 @@ func (b *Board) Move(move *Move) {
 
 			b.emptySquares ^= D1.Bitboard()
 			b.emptySquares |= A1.Bitboard()
+
+			hash ^= zobristHashMoves[WhiteRook-1][D1] ^ zobristHashMoves[WhiteRook-1][A1]
 		} else if move.flags&BlackKingCastleFlag != 0 {
 			b.bbBlackRook |= F8.Bitboard()
 			b.bbBlackRook ^= H8.Bitboard()
@@ -185,6 +198,7 @@ func (b *Board) Move(move *Move) {
 
 			b.emptySquares ^= F8.Bitboard()
 			b.emptySquares |= H8.Bitboard()
+			hash ^= zobristHashMoves[BlackRook-1][F8] ^ zobristHashMoves[BlackRook-1][H8]
 		} else if move.flags&BlackQueenCastleFlag != 0 {
 			b.bbBlackRook |= D8.Bitboard()
 			b.bbBlackRook ^= A8.Bitboard()
@@ -194,6 +208,7 @@ func (b *Board) Move(move *Move) {
 
 			b.emptySquares ^= D8.Bitboard()
 			b.emptySquares |= A8.Bitboard()
+			hash ^= zobristHashMoves[BlackRook-1][D8] ^ zobristHashMoves[BlackRook-1][A8]
 		}
 	}
 
@@ -213,6 +228,8 @@ func (b *Board) Move(move *Move) {
 			b.emptySquares |= whitePawnPosition
 		}
 	}
+
+	return hash
 }
 
 // IsUnderAttack returns whether the current board is in check

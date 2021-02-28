@@ -41,6 +41,7 @@ type Position struct {
 	moveCount       int
 	inCheck         bool
 	legalMoves      []*Move
+	hash            uint64
 }
 
 func (pos Position) String() string {
@@ -50,10 +51,17 @@ func (pos Position) String() string {
 	return s
 }
 
+// Hash returns the zobrist hash for the position
+func (pos *Position) Hash() uint64 {
+	return pos.hash
+}
+
 // Move returns a new position applying the move, the operation is NOT in place
 func (pos Position) Move(move *Move) Position {
-	pos.board.Move(move)
+	pos.hash ^= pos.board.Move(move)
 	pos.turn = pos.turn.Other()
+	pos.hash ^= zobristHashBlackTurn
+
 	pos.moveCount++
 	if move.ShouldResetHalfMoveClock() {
 		pos.halfMoveClock = 0
@@ -65,29 +73,52 @@ func (pos Position) Move(move *Move) Position {
 
 	// update castle rights
 	if move.from == E1 {
-		pos.castleRights.WhiteKingSide = false
-		pos.castleRights.WhiteQueenSide = false
+		if pos.castleRights.WhiteKingSide {
+			pos.hash ^= zobristHashWhiteKingCastle
+			pos.castleRights.WhiteKingSide = false
+
+		}
+		if pos.castleRights.WhiteQueenSide {
+			pos.hash ^= zobristHashWhiteQueenCastle
+			pos.castleRights.WhiteQueenSide = false
+		}
 	}
 	if move.from == E8 {
-		pos.castleRights.BlackKingSide = false
-		pos.castleRights.BlackQueenSide = false
+		if pos.castleRights.BlackKingSide {
+			pos.hash ^= zobristHashBlackKingCastle
+			pos.castleRights.BlackKingSide = false
+
+		}
+		if pos.castleRights.BlackQueenSide {
+			pos.hash ^= zobristHashBlackQueenCastle
+			pos.castleRights.BlackQueenSide = false
+		}
 	}
-	if move.from == A1 || move.to == A1 {
+	if (move.from == A1 || move.to == A1) && pos.castleRights.WhiteQueenSide {
+		pos.hash ^= zobristHashWhiteQueenCastle
 		pos.castleRights.WhiteQueenSide = false
 	}
-	if move.from == A8 || move.to == A8 {
+	if (move.from == A8 || move.to == A8) && pos.castleRights.BlackQueenSide {
+		pos.hash ^= zobristHashBlackQueenCastle
 		pos.castleRights.BlackQueenSide = false
 	}
-	if move.from == H1 || move.to == H1 {
+	if (move.from == H1 || move.to == H1) && pos.castleRights.WhiteKingSide {
+		pos.hash ^= zobristHashWhiteKingCastle
 		pos.castleRights.WhiteKingSide = false
 	}
-	if move.from == H8 || move.to == H8 {
+	if (move.from == H8 || move.to == H8) && pos.castleRights.BlackKingSide {
+		pos.hash ^= zobristHashBlackKingCastle
 		pos.castleRights.BlackKingSide = false
 	}
 
+	// Remove previous enpassant square from the hash
+	if pos.enPassantSquare != NoSquare {
+		pos.hash ^= zobristHashEnPassant[pos.enPassantSquare%8]
+	}
 	// update en passant square
 	if move.IsDoublePawnPush() {
 		pos.enPassantSquare = (move.to + move.from) / 2
+		pos.hash ^= zobristHashEnPassant[pos.enPassantSquare%8]
 	} else {
 		pos.enPassantSquare = NoSquare
 	}

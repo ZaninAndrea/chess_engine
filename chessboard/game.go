@@ -148,6 +148,8 @@ func NewGame() Game {
 
 // NewGameFromFEN initializes a game from a fen string
 func NewGameFromFEN(fen string) Game {
+	initializeZobristHashes()
+
 	game := Game{}
 	game.LoadPrecomputedData("/Users/andreazanin/Code/go/chess_engine/precomputed.json")
 	game.positionsHistory = make([]*Position, 0, 40)
@@ -161,23 +163,30 @@ func NewGameFromFEN(fen string) Game {
 		panic("Invalid fen passed: it should have 6 pieces")
 	}
 
-	game.position.board = parseFenBoard(pieces[0])
+	var hash uint64
+	game.position.board, hash = parseFenBoard(pieces[0])
+	game.position.hash ^= hash
 
 	switch pieces[1] {
 	case "w":
 		game.position.turn = WhiteColor
 	case "b":
 		game.position.turn = BlackColor
+		game.position.hash ^= zobristHashBlackTurn
 	default:
 		panic("Invalid fen turn string")
 	}
 
-	game.position.castleRights = parseCastleRights(pieces[2])
+	game.position.castleRights, hash = parseCastleRights(pieces[2])
+	game.position.hash ^= hash
 	enPassantSquare, ok := stringToSquare[pieces[3]]
 	if !ok {
 		panic("Unrecognized en passant square")
 	}
 	game.position.enPassantSquare = enPassantSquare
+	if enPassantSquare != NoSquare {
+		game.position.hash ^= zobristHashEnPassant[enPassantSquare%8]
+	}
 
 	halfMoveClock, err := strconv.Atoi(pieces[4])
 	if err != nil || halfMoveClock < 0 {
@@ -197,27 +206,33 @@ func NewGameFromFEN(fen string) Game {
 	return game
 }
 
-func parseCastleRights(rawRights string) CastleRights {
+func parseCastleRights(rawRights string) (CastleRights, uint64) {
+	hash := uint64(0)
 	rights := CastleRights{}
 	if strings.Contains(rawRights, "K") {
 		rights.WhiteKingSide = true
+		hash ^= zobristHashWhiteKingCastle
 	}
 	if strings.Contains(rawRights, "Q") {
 		rights.WhiteQueenSide = true
+		hash ^= zobristHashWhiteQueenCastle
 	}
 	if strings.Contains(rawRights, "k") {
 		rights.BlackKingSide = true
+		hash ^= zobristHashBlackKingCastle
 	}
 	if strings.Contains(rawRights, "q") {
 		rights.BlackQueenSide = true
+		hash ^= zobristHashBlackQueenCastle
 	}
 
-	return rights
+	return rights, hash
 }
 
 // example string: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
-func parseFenBoard(rawBoard string) Board {
+func parseFenBoard(rawBoard string) (Board, uint64) {
 	board := Board{}
+	hash := uint64(0)
 
 	currentSquare := A8
 	index := 0
@@ -229,39 +244,51 @@ func parseFenBoard(rawBoard string) Board {
 		switch char {
 		case 'K':
 			board.bbWhiteKing |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteKing-1][currentSquare]
 			currentSquare++
 		case 'Q':
 			board.bbWhiteQueen |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteQueen-1][currentSquare]
 			currentSquare++
 		case 'R':
 			board.bbWhiteRook |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteRook-1][currentSquare]
 			currentSquare++
 		case 'B':
 			board.bbWhiteBishop |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteBishop-1][currentSquare]
 			currentSquare++
 		case 'N':
 			board.bbWhiteKnight |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteKnight-1][currentSquare]
 			currentSquare++
 		case 'P':
 			board.bbWhitePawn |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhitePawn-1][currentSquare]
 			currentSquare++
 		case 'k':
 			board.bbBlackKing |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[BlackKing-1][currentSquare]
 			currentSquare++
 		case 'q':
 			board.bbBlackQueen |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[BlackQueen-1][currentSquare]
 			currentSquare++
 		case 'r':
 			board.bbBlackRook |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[BlackRook-1][currentSquare]
 			currentSquare++
 		case 'b':
 			board.bbBlackBishop |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteBishop-1][currentSquare]
 			currentSquare++
 		case 'n':
 			board.bbBlackKnight |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhiteKnight-1][currentSquare]
 			currentSquare++
 		case 'p':
 			board.bbBlackPawn |= currentSquare.Bitboard()
+			hash ^= zobristHashMoves[WhitePawn-1][currentSquare]
 			currentSquare++
 		case '/':
 			currentSquare -= 16
@@ -279,5 +306,5 @@ func parseFenBoard(rawBoard string) Board {
 
 	board.FillSupportBitboards()
 
-	return board
+	return board, hash
 }
