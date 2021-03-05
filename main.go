@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
 	"github.com/ZaninAndrea/chess_engine/chessboard"
 )
@@ -18,7 +17,7 @@ func main() {
 	rand.Seed(1)
 
 	for game.Result() == chessboard.NoResult {
-		time.Sleep(800 * time.Millisecond)
+		// time.Sleep(800 * time.Millisecond)
 		fmt.Println()
 		game.Move(engine.BestMove(60))
 
@@ -27,4 +26,5 @@ func main() {
 	}
 
 	fmt.Println(game.Result())
+	fmt.Println(game)
 }

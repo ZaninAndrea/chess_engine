@@ -1,6 +1,9 @@
 package chessboard
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // BruteForceEngine explores all the tree to find the best move
 type BruteForceEngine struct {
@@ -12,6 +15,7 @@ type BruteForceEngine struct {
 	QuiescentSearchEnabled    bool
 	AlphaBetaPruningEnabled   bool
 	TranspositionTableEnabled bool
+	MoveSortingEnabled        bool
 }
 
 // NewBruteForceEngine initializes a BruteForceEngine
@@ -23,6 +27,7 @@ func NewBruteForceEngine(game *Game) Engine {
 		AlphaBetaPruningEnabled:   true,
 		CenterControlEval:         true,
 		TranspositionTableEnabled: true,
+		MoveSortingEnabled:        true,
 	}
 }
 
@@ -30,34 +35,126 @@ var nodes = 0
 
 // BestMove returns the best move as computed by the AI
 func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
-	// end := time.Now().Add(time.Duration(remainingTime / 40))
+	endTime := time.Now().Add(time.Duration(remainingTime) * (time.Second / 40))
 	eng.game = *eng.trackedGame
 
 	nodes = 0
 
-	move := eng.NegaMax(3)
-	fmt.Printf("Nodes explored: %d\n", nodes)
-	// for depth := 2; time.Now() < remainingTime/100; depth++ {
-	// 	fmt.Printf("Reached depth %d in %f seconds\n", depth, start.Sub(time.Now()).Seconds())
-	// 	move = eng.NegaMax(depth)
-	// }
+	var move *Move
+	evaluations := &(ZobristTable{})
+	depth := 1
+	for {
+		aborted, bestMove, newEvals := eng.NegaMax(depth, endTime, evaluations)
+		evaluations = newEvals
+
+		if aborted {
+			break
+		}
+
+		move = bestMove
+		depth++
+	}
+
+	fmt.Printf("Depth reached: %d, Nodes explored: %d\n", depth-1, nodes)
 
 	return move
 }
 
-// NegaMax does a negamax search of the tree up to the passed depth
-func (eng *BruteForceEngine) NegaMax(depth int) *Move {
-	legalMoves := eng.game.LegalMoves()
+func (eng *BruteForceEngine) sortMoves(moves []*Move, evaluationTable *ZobristTable) []*Move {
+	scores := make([]int, len(moves))
 
-	var bestMove *Move
+	// Fill the scores slice
+	N := len(moves)
+	for i := 0; i < N; i++ {
+		eng.game.Move(moves[i])
+
+		got, hash := evaluationTable.Get(eng.game.position.hash)
+		if got {
+			scores[i] = hash.Evaluation()
+		}
+
+		eng.game.UndoMove()
+	}
+
+	// A quicksort implementation that sorts moves by their score
+	// var recQuickSort func(int, int)
+	// recQuickSort = func(low int, high int) {
+	// 	if low < high {
+	// 		pivot := low
+	// 		pivotVal := scores[low]
+
+	// 		for i := low + 1; i <= high; i++ {
+	// 			if scores[i] < pivotVal {
+	// 				pivot++
+
+	// 				// swap moves at i and pivot
+	// 				swap := moves[i]
+	// 				moves[i] = moves[pivot]
+	// 				moves[pivot] = swap
+
+	// 				// swap scores at i and pivot
+	// 				swapScore := scores[i]
+	// 				scores[i] = scores[pivot]
+	// 				scores[pivot] = swapScore
+	// 			}
+	// 		}
+
+	// 		// Swap scores and moves at i and pivot
+	// 		scores[low] = scores[pivot]
+	// 		scores[pivot] = pivotVal
+	// 		swap := moves[low]
+	// 		moves[low] = moves[pivot]
+	// 		moves[pivot] = swap
+
+	// 		recQuickSort(low, pivot-1)
+	// 		recQuickSort(pivot+1, high)
+	// 	}
+	// }
+	// recQuickSort(0, len(moves)-1)
+
+	// An alternative implementation with insertion sort
+	for i := 0; i < len(moves); i++ {
+		score := scores[i]
+		move := moves[i]
+
+		j := i - 1
+		for j >= 0 && scores[j] > score {
+			moves[j+1] = moves[j]
+			scores[j+1] = scores[j]
+
+			j--
+		}
+
+		scores[j+1] = score
+		moves[j+1] = move
+	}
+
+	return moves
+}
+
+// NegaMax does a negamax search of the tree up to the passed depth
+func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *ZobristTable) (bool, *Move, *ZobristTable) {
+	var legalMoves []*Move
+
+	if eng.MoveSortingEnabled {
+		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluations)
+	} else {
+		legalMoves = eng.game.LegalMoves()
+	}
+
+	bestMove := legalMoves[0]
 	bestScore := -1_000_000
 	mainLine := []*Move{}
-	evaluationCache := ZobristTable{}
 
 	for i := 0; i < len(legalMoves); i++ {
+		// Abort search if running out of time
+		if time.Now().After(endTime) {
+			return true, nil, nil
+		}
+
 		eng.game.Move(legalMoves[i])
 
-		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore, &evaluationCache)
+		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore, evaluations)
 		score = -score
 		if score > bestScore {
 			bestScore = score
@@ -68,13 +165,14 @@ func (eng *BruteForceEngine) NegaMax(depth int) *Move {
 		eng.game.UndoMove()
 	}
 
-	fmt.Printf("Score: %d\n", bestScore)
+	fmt.Printf("Score: %d, ", bestScore)
 	fmt.Print("Main line: ")
 	for i := len(mainLine) - 1; i >= 0; i-- {
 		fmt.Printf("%s ", *mainLine[i])
 	}
+	fmt.Println()
 
-	return bestMove
+	return false, bestMove, evaluations
 }
 
 func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable) (int, []*Move) {
@@ -113,7 +211,12 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 		}
 	}
 
-	legalMoves := eng.game.LegalMoves()
+	var legalMoves []*Move
+	if eng.MoveSortingEnabled {
+		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluationCache)
+	} else {
+		legalMoves = eng.game.LegalMoves()
+	}
 
 	for i := 0; i < len(legalMoves); i++ {
 		eng.game.Move(legalMoves[i])
@@ -132,7 +235,7 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 
 					hash := eng.game.position.hash.SetData(int16(alpha), int8(depth), true)
 					evaluationCache.Set(hash)
-					return alpha, []*Move{}
+					return alpha, mainLine
 				}
 			}
 		}
@@ -159,7 +262,13 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 		return eng.StaticEvaluation(), []*Move{}
 	}
 
-	legalMoves := eng.game.LegalMoves()
+	var legalMoves []*Move
+
+	if eng.MoveSortingEnabled {
+		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluationCache)
+	} else {
+		legalMoves = eng.game.LegalMoves()
+	}
 
 	var bestScore int
 	mainLine := []*Move{}
@@ -199,7 +308,7 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 
 					if alpha >= beta && eng.AlphaBetaPruningEnabled {
 						eng.game.UndoMove()
-						return alpha, []*Move{}
+						return alpha, mainLine
 					}
 				}
 			}

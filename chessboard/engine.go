@@ -76,10 +76,10 @@ func centerControl(pos *Position) int {
 	score := 0
 
 	if pos.board.bbWhitePawn&centerBitboard != 0 {
-		score += 50
+		score += 70
 	}
 	if pos.board.bbBlackPawn&centerBitboard != 0 {
-		score -= 50
+		score -= 70
 	}
 
 	return score

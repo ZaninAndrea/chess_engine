@@ -2,6 +2,7 @@ package chessboard
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -48,6 +49,18 @@ type Game struct {
 	position         *Position
 	positionsHistory []*Position
 	moves            []*Move
+}
+
+func (game Game) String() string {
+	str := ""
+	for i, move := range game.moves {
+		if i%2 == 0 {
+			str += fmt.Sprintf("%d. ", 1+i/2)
+		}
+		str += move.String() + " "
+	}
+
+	return str
 }
 
 // Result returns the result of the current game
