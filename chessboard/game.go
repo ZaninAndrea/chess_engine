@@ -163,7 +163,7 @@ func NewGameFromFEN(fen string) Game {
 		panic("Invalid fen passed: it should have 6 pieces")
 	}
 
-	var hash uint64
+	var hash ZobristHash
 	game.position.board, hash = parseFenBoard(pieces[0])
 	game.position.hash ^= hash
 
@@ -206,8 +206,8 @@ func NewGameFromFEN(fen string) Game {
 	return game
 }
 
-func parseCastleRights(rawRights string) (CastleRights, uint64) {
-	hash := uint64(0)
+func parseCastleRights(rawRights string) (CastleRights, ZobristHash) {
+	hash := ZobristHash(0)
 	rights := CastleRights{}
 	if strings.Contains(rawRights, "K") {
 		rights.WhiteKingSide = true
@@ -230,9 +230,9 @@ func parseCastleRights(rawRights string) (CastleRights, uint64) {
 }
 
 // example string: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR
-func parseFenBoard(rawBoard string) (Board, uint64) {
+func parseFenBoard(rawBoard string) (Board, ZobristHash) {
 	board := Board{}
-	hash := uint64(0)
+	hash := ZobristHash(0)
 
 	currentSquare := A8
 	index := 0

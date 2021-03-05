@@ -4,23 +4,25 @@ import "fmt"
 
 // BruteForceEngine explores all the tree to find the best move
 type BruteForceEngine struct {
-	trackedGame             *Game
-	game                    Game
-	MaterialDifferenceEval  bool
-	PositionDifferenceEval  bool
-	CenterControlEval       bool
-	QuiescentSearchEnabled  bool
-	AlphaBetaPruningEnabled bool
+	trackedGame               *Game
+	game                      Game
+	MaterialDifferenceEval    bool
+	PositionDifferenceEval    bool
+	CenterControlEval         bool
+	QuiescentSearchEnabled    bool
+	AlphaBetaPruningEnabled   bool
+	TranspositionTableEnabled bool
 }
 
 // NewBruteForceEngine initializes a BruteForceEngine
 func NewBruteForceEngine(game *Game) Engine {
 	return &BruteForceEngine{trackedGame: game,
-		MaterialDifferenceEval:  true,
-		PositionDifferenceEval:  true,
-		QuiescentSearchEnabled:  true,
-		AlphaBetaPruningEnabled: true,
-		CenterControlEval:       true,
+		MaterialDifferenceEval:    true,
+		PositionDifferenceEval:    true,
+		QuiescentSearchEnabled:    true,
+		AlphaBetaPruningEnabled:   true,
+		CenterControlEval:         true,
+		TranspositionTableEnabled: true,
 	}
 }
 
@@ -32,7 +34,8 @@ func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
 	eng.game = *eng.trackedGame
 
 	nodes = 0
-	move := eng.NegaMax(5)
+
+	move := eng.NegaMax(3)
 	fmt.Printf("Nodes explored: %d\n", nodes)
 	// for depth := 2; time.Now() < remainingTime/100; depth++ {
 	// 	fmt.Printf("Reached depth %d in %f seconds\n", depth, start.Sub(time.Now()).Seconds())
@@ -49,11 +52,12 @@ func (eng *BruteForceEngine) NegaMax(depth int) *Move {
 	var bestMove *Move
 	bestScore := -1_000_000
 	mainLine := []*Move{}
+	evaluationCache := ZobristTable{}
 
 	for i := 0; i < len(legalMoves); i++ {
 		eng.game.Move(legalMoves[i])
 
-		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore)
+		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore, &evaluationCache)
 		score = -score
 		if score > bestScore {
 			bestScore = score
@@ -73,7 +77,7 @@ func (eng *BruteForceEngine) NegaMax(depth int) *Move {
 	return bestMove
 }
 
-func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int) (int, []*Move) {
+func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable) (int, []*Move) {
 	nodes++
 
 	switch eng.game.Result() {
@@ -86,21 +90,35 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int) (int, []
 	if depth == 0 {
 		if eng.QuiescentSearchEnabled {
 			nodes--
-			return eng.quiescentSearch(8, alpha, beta)
+			return eng.quiescentSearch(4, alpha, beta, evaluationCache)
 		}
 
 		return eng.StaticEvaluation(), []*Move{}
 	}
 
-	legalMoves := eng.game.LegalMoves()
-
 	bestScore := -1_000_000
 	mainLine := []*Move{}
+	if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
+		if !value.LowerBound() {
+			return value.Evaluation(), mainLine
+		}
+
+		bestScore := value.Evaluation()
+		if bestScore > alpha {
+			alpha = bestScore
+
+			if alpha >= beta {
+				return alpha, mainLine
+			}
+		}
+	}
+
+	legalMoves := eng.game.LegalMoves()
 
 	for i := 0; i < len(legalMoves); i++ {
 		eng.game.Move(legalMoves[i])
 
-		score, variation := eng.recNegaMax(depth-1, -beta, -alpha)
+		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluationCache)
 		score = -score
 		if score > bestScore {
 			bestScore = score
@@ -111,6 +129,9 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int) (int, []
 
 				if alpha >= beta && eng.AlphaBetaPruningEnabled {
 					eng.game.UndoMove()
+
+					hash := eng.game.position.hash.SetData(int16(alpha), int8(depth), true)
+					evaluationCache.Set(hash)
 					return alpha, []*Move{}
 				}
 			}
@@ -119,10 +140,12 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int) (int, []
 		eng.game.UndoMove()
 	}
 
+	hash := eng.game.position.hash.SetData(int16(bestScore), int8(depth), false)
+	evaluationCache.Set(hash)
 	return bestScore, mainLine
 }
 
-func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int) (int, []*Move) {
+func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, evaluationCache *ZobristTable) (int, []*Move) {
 	nodes++
 
 	switch eng.game.Result() {
@@ -138,17 +161,34 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int) (in
 
 	legalMoves := eng.game.LegalMoves()
 
-	// Replace with null move evaluation
-	bestScore := eng.StaticEvaluation()
-	captureMoveFound := false
+	var bestScore int
 	mainLine := []*Move{}
+	if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
+		if !value.LowerBound() {
+			return value.Evaluation(), mainLine
+		}
+
+		bestScore := value.Evaluation()
+		if bestScore > alpha {
+			alpha = bestScore
+
+			if alpha >= beta {
+				return alpha, mainLine
+			}
+		}
+	} else {
+		// Replace with null move evaluation
+		bestScore = eng.StaticEvaluation()
+	}
+
+	captureMoveFound := false
 
 	for i := 0; i < len(legalMoves); i++ {
 		if legalMoves[i].IsCapture() {
 			captureMoveFound = true
 			eng.game.Move(legalMoves[i])
 
-			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha)
+			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache)
 			score = -score
 			if score > bestScore {
 				bestScore = score

@@ -41,7 +41,7 @@ type Position struct {
 	moveCount       int
 	inCheck         bool
 	legalMoves      []*Move
-	hash            uint64
+	hash            ZobristHash
 }
 
 func (pos Position) String() string {
@@ -52,7 +52,7 @@ func (pos Position) String() string {
 }
 
 // Hash returns the zobrist hash for the position
-func (pos *Position) Hash() uint64 {
+func (pos *Position) Hash() ZobristHash {
 	return pos.hash
 }
 

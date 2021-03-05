@@ -84,9 +84,9 @@ func (b Board) String() string {
 // Move updates the boarding moving the piece in the starting square to the target square
 // it also captures the square in the target square if needed.
 // Returns the update to the zobrist hash
-func (b *Board) Move(move *Move) uint64 {
+func (b *Board) Move(move *Move) ZobristHash {
 	var piece Piece
-	var hash uint64
+	var hash ZobristHash
 	if move.promotion != NoPiece {
 		piece = move.promotion
 		hash = zobristHashMoves[b.Piece(move.from)-1][move.from] ^ zobristHashMoves[piece-1][move.to]
