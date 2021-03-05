@@ -13,6 +13,7 @@ const (
 	WhiteEnPassantFlag
 	BlackEnPassantFlag
 	DoublePawnPushFlag
+	IsCaptureFlag
 )
 
 // CastlesFlag is a mask to check whether any of the castles flags is set
@@ -44,7 +45,9 @@ func (m *Move) IsCastle() bool {
 func (m *Move) IsEnPassant() bool {
 	return m.flags&EnPassantMask != 0
 }
-
 func (m *Move) IsDoublePawnPush() bool {
 	return m.flags&DoublePawnPushFlag != 0
+}
+func (m *Move) IsCapture() bool {
+	return m.flags&IsCaptureFlag != 0
 }

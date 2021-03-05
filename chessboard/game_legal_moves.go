@@ -30,6 +30,7 @@ func (game *Game) LegalMoves() []*Move {
 			// Captures should reset the half move clock
 			if pseudolegalMoves[i].to.Bitboard()&game.position.board.emptySquares == 0 {
 				pseudolegalMoves[i].flags |= ResetHalfMoveClockFlag
+				pseudolegalMoves[i].flags |= IsCaptureFlag
 			}
 
 			legalMoves = append(legalMoves, pseudolegalMoves[i])
@@ -253,15 +254,15 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 
 func appendPawnMove(from square, to square, moves *[]*Move) {
 	if to > H7 {
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteBishop, flags: ResetHalfMoveClockFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteKnight, flags: ResetHalfMoveClockFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteRook, flags: ResetHalfMoveClockFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteQueen, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteBishop, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteKnight, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteRook, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteQueen, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
 	} else if to < A2 {
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackBishop, flags: ResetHalfMoveClockFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackKnight, flags: ResetHalfMoveClockFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackRook, flags: ResetHalfMoveClockFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackQueen, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackBishop, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackKnight, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackRook, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackQueen, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
 	} else {
 		*moves = append(*moves, &Move{from: from, to: to, flags: ResetHalfMoveClockFlag})
 	}

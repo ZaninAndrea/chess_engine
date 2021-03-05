@@ -31,7 +31,12 @@ func TestMoveGenerationStart5Ply(t *testing.T) {
 	}
 }
 
-func TestMoveGenerationOther5Ply(t *testing.T){
+func TestMoveGenerationOther5Ply(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+		return
+	}
+
 	game := NewGameFromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
 	total := countAllMoves(&game, 5)
 
