@@ -39,13 +39,17 @@ func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
 	eng.game = *eng.trackedGame
 
 	nodes = 0
+	zobristCacheHits = 0
+	zobristCacheMisses = 0
 
-	var move *Move
+	move := eng.game.LegalMoves()[0]
 	evaluations := &(ZobristTable{})
+	quiescentEvaluations := &(ZobristTable{})
 	depth := 1
 	for {
-		aborted, bestMove, newEvals := eng.NegaMax(depth, endTime, evaluations)
+		aborted, bestMove, newEvals, newQuiescentEvals := eng.NegaMax(depth, endTime, evaluations, quiescentEvaluations)
 		evaluations = newEvals
+		quiescentEvaluations = newQuiescentEvals
 
 		if aborted {
 			break
@@ -55,7 +59,7 @@ func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
 		depth++
 	}
 
-	fmt.Printf("Depth reached: %d, Nodes explored: %d\n", depth-1, nodes)
+	fmt.Printf("Depth reached: %d, Nodes explored: %d, Cache hits: %d, Cache misses: %d\n", depth-1, nodes, zobristCacheHits, zobristCacheMisses)
 
 	return move
 }
@@ -133,7 +137,7 @@ func (eng *BruteForceEngine) sortMoves(moves []*Move, evaluationTable *ZobristTa
 }
 
 // NegaMax does a negamax search of the tree up to the passed depth
-func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *ZobristTable) (bool, *Move, *ZobristTable) {
+func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *ZobristTable, quiescentEvaluations *ZobristTable) (bool, *Move, *ZobristTable, *ZobristTable) {
 	var legalMoves []*Move
 
 	if eng.MoveSortingEnabled {
@@ -149,12 +153,12 @@ func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *
 	for i := 0; i < len(legalMoves); i++ {
 		// Abort search if running out of time
 		if time.Now().After(endTime) {
-			return true, nil, nil
+			return true, nil, nil, nil
 		}
 
 		eng.game.Move(legalMoves[i])
 
-		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore, evaluations)
+		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore, evaluations, quiescentEvaluations)
 		score = -score
 		if score > bestScore {
 			bestScore = score
@@ -172,10 +176,10 @@ func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *
 	}
 	fmt.Println()
 
-	return false, bestMove, evaluations
+	return false, bestMove, evaluations, quiescentEvaluations
 }
 
-func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable) (int, []*Move) {
+func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []*Move) {
 	nodes++
 
 	switch eng.game.Result() {
@@ -188,7 +192,7 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 	if depth == 0 {
 		if eng.QuiescentSearchEnabled {
 			nodes--
-			return eng.quiescentSearch(4, alpha, beta, evaluationCache)
+			return eng.quiescentSearch(6, alpha, beta, evaluationCache, quiescentCache)
 		}
 
 		return eng.StaticEvaluation(), []*Move{}
@@ -221,7 +225,7 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 	for i := 0; i < len(legalMoves); i++ {
 		eng.game.Move(legalMoves[i])
 
-		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluationCache)
+		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
 		score = -score
 		if score > bestScore {
 			bestScore = score
@@ -233,8 +237,8 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 				if alpha >= beta && eng.AlphaBetaPruningEnabled {
 					eng.game.UndoMove()
 
-					hash := eng.game.position.hash.SetData(int16(alpha), int8(depth), true)
-					evaluationCache.Set(hash)
+					hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+					evaluationCache.Set(eng.game.position.hash.Key(), hash)
 					return alpha, mainLine
 				}
 			}
@@ -243,12 +247,12 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 		eng.game.UndoMove()
 	}
 
-	hash := eng.game.position.hash.SetData(int16(bestScore), int8(depth), false)
-	evaluationCache.Set(hash)
+	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), false)
+	evaluationCache.Set(eng.game.position.hash.Key(), hash)
 	return bestScore, mainLine
 }
 
-func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, evaluationCache *ZobristTable) (int, []*Move) {
+func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []*Move) {
 	nodes++
 
 	switch eng.game.Result() {
@@ -272,7 +276,21 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 
 	var bestScore int
 	mainLine := []*Move{}
-	if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
+	// Lookup in both caches
+	if found, value := quiescentCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
+		if !value.LowerBound() {
+			return value.Evaluation(), mainLine
+		}
+
+		bestScore := value.Evaluation()
+		if bestScore > alpha {
+			alpha = bestScore
+
+			if alpha >= beta {
+				return alpha, mainLine
+			}
+		}
+	} else if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
 		if !value.LowerBound() {
 			return value.Evaluation(), mainLine
 		}
@@ -297,7 +315,7 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 			captureMoveFound = true
 			eng.game.Move(legalMoves[i])
 
-			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache)
+			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
 			score = -score
 			if score > bestScore {
 				bestScore = score
@@ -308,6 +326,9 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 
 					if alpha >= beta && eng.AlphaBetaPruningEnabled {
 						eng.game.UndoMove()
+
+						hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+						quiescentCache.Set(eng.game.position.hash.Key(), hash)
 						return alpha, mainLine
 					}
 				}
@@ -321,6 +342,8 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 		return eng.StaticEvaluation(), []*Move{}
 	}
 
+	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), true)
+	quiescentCache.Set(eng.game.position.hash.Key(), hash)
 	return bestScore, mainLine
 }
 

@@ -18,20 +18,20 @@ var (
 
 func initializeZobristHashes() {
 	rand.Seed(1)
-	zobristHashWhiteKingCastle = ZobristHash(rand.Uint64() << 21)
-	zobristHashWhiteQueenCastle = ZobristHash(rand.Uint64() << 21)
-	zobristHashBlackKingCastle = ZobristHash(rand.Uint64() << 21)
-	zobristHashBlackQueenCastle = ZobristHash(rand.Uint64() << 21)
-	zobristHashBlackTurn = ZobristHash(rand.Uint64() << 21)
+	zobristHashWhiteKingCastle = ZobristHash(rand.Uint64())
+	zobristHashWhiteQueenCastle = ZobristHash(rand.Uint64())
+	zobristHashBlackKingCastle = ZobristHash(rand.Uint64())
+	zobristHashBlackQueenCastle = ZobristHash(rand.Uint64())
+	zobristHashBlackTurn = ZobristHash(rand.Uint64())
 
 	for i := 0; i < 12; i++ {
 		for j := 0; j < 64; j++ {
-			zobristHashMoves[i][j] = ZobristHash(rand.Uint64() << 21)
+			zobristHashMoves[i][j] = ZobristHash(rand.Uint64())
 		}
 	}
 
 	for i := 0; i < 8; i++ {
-		zobristHashEnPassant[i] = ZobristHash(rand.Uint64() << 21)
+		zobristHashEnPassant[i] = ZobristHash(rand.Uint64())
 	}
 }
 
@@ -47,14 +47,18 @@ func (h ZobristHash) SetData(evaluation int16, depth int8, lowerBound bool) Zobr
 	return h
 }
 
-// Key returns the 27 bit key for the hash tables
+// The following parameter can be safely decreased down to 21, because it still
+// leaves enough space in the hash table content for all the metadata
+const zobristCacheSize int = 22
+
+// Key returns the 22 bit key for the hash tables
 func (h ZobristHash) Key() int32 {
-	return int32(h >> (64 - 27))
+	return int32(h >> (64 - zobristCacheSize))
 }
 
-// PositionHash returns the hash for the current position in long form (43 bits)
-func (h ZobristHash) PositionHash() int64 {
-	return int64(h >> 21)
+// HashValue returns the value to store in the hash table as verification
+func (h ZobristHash) HashValue() ZobristHash {
+	return h << zobristCacheSize
 }
 
 const evaluationMask ZobristHash = 0b111111111111110000000
@@ -76,22 +80,31 @@ func (h ZobristHash) LowerBound() bool {
 	return h&1 != 0
 }
 
-const zobristCacheSize int = 1 << 27
-
 // ZobristTable is an HashTable using the zobrist hash algorithm
-type ZobristTable [zobristCacheSize]ZobristHash
+type ZobristTable [1 << zobristCacheSize]ZobristHash
+
+var zobristCacheHits = 0
+var zobristCacheMisses = 0
 
 // Get gets an element from the table, returns a boolean value representing whether the
 // value was found and the value itself if found
 func (tb *ZobristTable) Get(hash ZobristHash) (bool, ZobristHash) {
-	if tb[hash.Key()] == 0 {
+	key := hash.Key()
+	if tb[key] == 0 {
+		zobristCacheMisses++
 		return false, 0
 	}
 
-	return true, tb[hash.Key()]
+	if (tb[key] >> zobristCacheSize) != (hash.HashValue() >> zobristCacheSize) {
+		zobristCacheMisses++
+		return false, 0
+	}
+
+	zobristCacheHits++
+	return true, tb[key]
 }
 
 // Set saves an hash in the table
-func (tb *ZobristTable) Set(hash ZobristHash) {
-	tb[hash.Key()] = hash
+func (tb *ZobristTable) Set(key int32, hash ZobristHash) {
+	tb[key] = hash
 }

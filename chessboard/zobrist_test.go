@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func countAllType1Collisions(game *Game, depth int, zobristTable *[1 << 27]ZobristHash, positionsMap *map[ZobristHash]Position) int {
+func countAllType1Collisions(game *Game, depth int, zobristTable *ZobristTable, positionsMap *map[int32]Position) int {
 	collisions := 0
-	key := game.position.Hash() >> (64 - 27)
+	key := game.position.Hash().Key()
 
-	if zobristTable[key] != 0 && zobristTable[key] == game.position.Hash() &&
+	if zobristTable[key] != 0 && zobristTable[key] == game.position.Hash().HashValue() &&
 		((*positionsMap)[key].board != (*game.position).board ||
 			(*positionsMap)[key].castleRights != (*game.position).castleRights ||
 			(*positionsMap)[key].turn != (*game.position).turn ||
@@ -16,7 +16,7 @@ func countAllType1Collisions(game *Game, depth int, zobristTable *[1 << 27]Zobri
 		collisions = 1
 	}
 
-	zobristTable[key] = game.position.Hash()
+	zobristTable[key] = game.position.Hash().HashValue()
 	(*positionsMap)[key] = *game.position
 
 	if depth == 0 {
@@ -38,23 +38,23 @@ func BenchmarkZobristType1Collisions(b *testing.B) {
 	// game := NewGame()
 	game := NewGameFromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
 
-	var zobristTable [1 << 27]ZobristHash
-	positionsMap := map[ZobristHash]Position{}
+	zobristTable := ZobristTable{}
+	positionsMap := map[int32]Position{}
 
 	total := countAllType1Collisions(&game, 5, &zobristTable, &positionsMap)
 
 	b.ReportMetric(float64(total), "type1collisions")
 }
 
-func countAllType2Collisions(game *Game, depth int, zobristTable *[1 << 27]ZobristHash) int {
+func countAllType2Collisions(game *Game, depth int, zobristTable *ZobristTable) int {
 	collisions := 0
-	key := game.position.Hash() >> (64 - 27)
+	key := game.position.Hash().Key()
 
-	if zobristTable[key] != 0 && zobristTable[key] != game.position.Hash() {
+	if zobristTable[key] != 0 && zobristTable[key] != game.position.Hash().HashValue() {
 		collisions = 1
 	}
 
-	zobristTable[key] = game.position.Hash()
+	zobristTable[key] = game.position.Hash().HashValue()
 	if depth == 0 {
 		return collisions
 	}
@@ -73,7 +73,7 @@ func countAllType2Collisions(game *Game, depth int, zobristTable *[1 << 27]Zobri
 func BenchmarkZobristType2Collisions(b *testing.B) {
 	// game := NewGame()
 	game := NewGameFromFEN("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
-	var zobristTable [1 << 27]ZobristHash
+	zobristTable := ZobristTable{}
 
 	total := countAllType2Collisions(&game, 5, &zobristTable)
 
