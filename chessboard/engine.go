@@ -84,3 +84,73 @@ func centerControl(pos *Position) int {
 
 	return score
 }
+
+// Computes penalties for
+// - doubled pawns, that is when there are 2 same color pawns in the same file
+//   and in the neighbouring files there are no pawns of that same color
+// - isolated pawn, that is a file with a single pawn and without pawns in the neighbouring files
+func doubledOrIsolatedPawnsPenalties(pos *Position, precomputedData *PrecomputedData) int {
+	score := 0
+
+	whitePawns := pos.board.bbWhitePawn
+	for whitePawns != 0 {
+		sq := whitePawns.LeastSignificant1Bit()
+		whitePawns.ClearLeastSignificant1Bit()
+
+		if precomputedData.DoublePawnsSidesMasks[sq]&pos.board.bbWhitePawn == 0 {
+			if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbWhitePawn != 0 {
+				// doubled pawns
+				score -= 90
+			} else {
+				// isolated pawn
+				score -= 45
+			}
+		}
+
+	}
+
+	blackPawns := pos.board.bbBlackPawn
+	for blackPawns != 0 {
+		sq := blackPawns.LeastSignificant1Bit()
+		blackPawns.ClearLeastSignificant1Bit()
+
+		if precomputedData.DoublePawnsSidesMasks[sq]&pos.board.bbBlackPawn == 0 {
+			if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbBlackPawn != 0 {
+				// doubled pawns
+				score += 90
+			} else {
+				// isolated pawn
+				score += 45
+			}
+		}
+	}
+
+	return score
+}
+
+// Compute bonuses for passed pawns
+func passedPawnsBonuses(pos *Position, precomputedData *PrecomputedData) int {
+	score := 0
+
+	whitePawns := pos.board.bbWhitePawn
+	for whitePawns != 0 {
+		sq := whitePawns.LeastSignificant1Bit()
+		whitePawns.ClearLeastSignificant1Bit()
+
+		if precomputedData.PassedPawnWhiteMasks[sq]&pos.board.bbBlackPawn == 0 {
+			score += 120
+		}
+	}
+
+	blackPawns := pos.board.bbBlackPawn
+	for blackPawns != 0 {
+		sq := blackPawns.LeastSignificant1Bit()
+		blackPawns.ClearLeastSignificant1Bit()
+
+		if precomputedData.PassedPawnBlackMasks[sq]&pos.board.bbWhitePawn == 0 {
+			score -= 120
+		}
+	}
+
+	return score
+}

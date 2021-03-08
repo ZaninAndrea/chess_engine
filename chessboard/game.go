@@ -31,16 +31,20 @@ func (res Result) String() string {
 
 // PrecomputedData contains all the precalculated bitboards used in move generation
 type PrecomputedData struct {
-	KingMoves       [64]Bitboard
-	KnightMoves     [64]Bitboard
-	RookMagics      [64]uint64
-	RookIndexBits   [64]int
-	RookMasks       [64]Bitboard
-	RookMoves       [64][4096]Bitboard
-	BishopMagics    [64]uint64
-	BishopIndexBits [64]int
-	BishopMasks     [64]Bitboard
-	BishopMoves     [64][1024]Bitboard
+	KingMoves               [64]Bitboard
+	KnightMoves             [64]Bitboard
+	RookMagics              [64]uint64
+	RookIndexBits           [64]int
+	RookMasks               [64]Bitboard
+	RookMoves               [64][4096]Bitboard
+	BishopMagics            [64]uint64
+	BishopIndexBits         [64]int
+	BishopMasks             [64]Bitboard
+	BishopMoves             [64][1024]Bitboard
+	DoublePawnsForwardMasks [64]Bitboard
+	DoublePawnsSidesMasks   [64]Bitboard
+	PassedPawnWhiteMasks    [64]Bitboard
+	PassedPawnBlackMasks    [64]Bitboard
 }
 
 // Game contains all information about the game

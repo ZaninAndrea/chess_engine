@@ -12,6 +12,8 @@ type BruteForceEngine struct {
 	MaterialDifferenceEval    bool
 	PositionDifferenceEval    bool
 	CenterControlEval         bool
+	DoubledIsolatedPawnsEval  bool
+	PassedPawnsEval           bool
 	QuiescentSearchEnabled    bool
 	AlphaBetaPruningEnabled   bool
 	TranspositionTableEnabled bool
@@ -28,6 +30,8 @@ func NewBruteForceEngine(game *Game) Engine {
 		CenterControlEval:         true,
 		TranspositionTableEnabled: true,
 		MoveSortingEnabled:        true,
+		DoubledIsolatedPawnsEval:  true,
+		PassedPawnsEval:           true,
 	}
 }
 
@@ -192,7 +196,7 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 	if depth == 0 {
 		if eng.QuiescentSearchEnabled {
 			nodes--
-			return eng.quiescentSearch(6, alpha, beta, evaluationCache, quiescentCache)
+			return eng.quiescentSearch(7, alpha, beta, evaluationCache, quiescentCache)
 		}
 
 		return eng.StaticEvaluation(), []*Move{}
@@ -360,6 +364,12 @@ func (eng *BruteForceEngine) StaticEvaluation() int {
 	}
 	if eng.CenterControlEval {
 		score += centerControl(eng.game.position)
+	}
+	if eng.DoubledIsolatedPawnsEval {
+		score += doubledOrIsolatedPawnsPenalties(eng.game.position, &eng.game.precomputedData)
+	}
+	if eng.PassedPawnsEval {
+		score += passedPawnsBonuses(eng.game.position, &eng.game.precomputedData)
 	}
 
 	return score * int(eng.game.position.turn)

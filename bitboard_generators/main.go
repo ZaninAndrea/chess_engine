@@ -22,17 +22,24 @@ func main() {
 	bishopMasks := generateBishopMasks()
 	bishopMoves := generateBishopMoves(bishopMagics, bishopIndexBits)
 
+	forwardFileMask, sideFilesMask := generateDoubledPawnMasks()
+	whitePassedMasks, blackPassedMasks := passedPawnMasks()
+
 	byteJSON, err := json.Marshal(PrecomputedData{
-		KingMoves:       kingMoves,
-		KnightMoves:     knightMoves,
-		RookMagics:      rookMagics,
-		RookIndexBits:   rookIndexBits,
-		RookMasks:       rookMasks,
-		RookMoves:       rookMoves,
-		BishopMagics:    bishopMagics,
-		BishopIndexBits: bishopIndexBits,
-		BishopMasks:     bishopMasks,
-		BishopMoves:     bishopMoves,
+		KingMoves:               kingMoves,
+		KnightMoves:             knightMoves,
+		RookMagics:              rookMagics,
+		RookIndexBits:           rookIndexBits,
+		RookMasks:               rookMasks,
+		RookMoves:               rookMoves,
+		BishopMagics:            bishopMagics,
+		BishopIndexBits:         bishopIndexBits,
+		BishopMasks:             bishopMasks,
+		BishopMoves:             bishopMoves,
+		DoublePawnsForwardMasks: forwardFileMask,
+		DoublePawnsSidesMasks:   sideFilesMask,
+		PassedPawnWhiteMasks:    whitePassedMasks,
+		PassedPawnBlackMasks:    blackPassedMasks,
 	})
 
 	if err != nil {
