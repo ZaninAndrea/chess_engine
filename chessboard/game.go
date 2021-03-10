@@ -102,15 +102,7 @@ func (game *Game) Result() Result {
 
 	legalMoves := game.LegalMoves()
 	if len(legalMoves) == 0 {
-		var kingSquare square
-
-		if game.position.turn == WhiteColor {
-			kingSquare = game.position.board.whiteKingSquare
-		} else {
-			kingSquare = game.position.board.blackKingSquare
-		}
-
-		if game.position.board.IsUnderAttack(game, kingSquare) {
+		if game.position.inCheck {
 			return Checkmate
 		}
 
@@ -124,6 +116,21 @@ func (game *Game) Result() Result {
 // Move applies a move in the game
 func (game *Game) Move(move *Move) {
 	pos := game.position.Move(move)
+
+	// update in check status
+	var kingSquare square
+	if pos.turn == WhiteColor {
+		kingSquare = pos.board.whiteKingSquare
+	} else {
+		kingSquare = pos.board.blackKingSquare
+	}
+
+	if pos.board.IsUnderAttack(&game.precomputedData, pos.turn, kingSquare) {
+		pos.inCheck = true
+	} else {
+		pos.inCheck = false
+	}
+
 	game.position = &pos
 	game.positionsHistory = append(game.positionsHistory, game.position)
 	game.moves = append(game.moves, move)

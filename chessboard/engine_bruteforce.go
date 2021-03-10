@@ -21,14 +21,14 @@ type BruteForceEngine struct {
 }
 
 // NewBruteForceEngine initializes a BruteForceEngine
-func NewBruteForceEngine(game *Game) Engine {
+func NewBruteForceEngine(game *Game) *BruteForceEngine {
 	return &BruteForceEngine{trackedGame: game,
 		MaterialDifferenceEval:    true,
 		PositionDifferenceEval:    true,
 		QuiescentSearchEnabled:    true,
 		AlphaBetaPruningEnabled:   true,
 		CenterControlEval:         true,
-		TranspositionTableEnabled: true,
+		TranspositionTableEnabled: false,
 		MoveSortingEnabled:        true,
 		DoubledIsolatedPawnsEval:  true,
 		PassedPawnsEval:           true,
@@ -36,6 +36,16 @@ func NewBruteForceEngine(game *Game) Engine {
 }
 
 var nodes = 0
+
+func (eng *BruteForceEngine) PositionAnalysisString() string {
+	return fmt.Sprintf("Material difference: %d, Position difference: %d, Center control: %d, Doubled and Isolated Pawns: %d, Passed Pawns: %d",
+		materialDifference(eng.trackedGame.position),
+		positionDifference(eng.trackedGame.position),
+		centerControl(eng.trackedGame.position),
+		doubledOrIsolatedPawnsPenalties(eng.trackedGame.position, &eng.trackedGame.precomputedData),
+		passedPawnsBonuses(eng.trackedGame.position, &eng.trackedGame.precomputedData),
+	)
+}
 
 // BestMove returns the best move as computed by the AI
 func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
@@ -84,43 +94,7 @@ func (eng *BruteForceEngine) sortMoves(moves []*Move, evaluationTable *ZobristTa
 		eng.game.UndoMove()
 	}
 
-	// A quicksort implementation that sorts moves by their score
-	// var recQuickSort func(int, int)
-	// recQuickSort = func(low int, high int) {
-	// 	if low < high {
-	// 		pivot := low
-	// 		pivotVal := scores[low]
-
-	// 		for i := low + 1; i <= high; i++ {
-	// 			if scores[i] < pivotVal {
-	// 				pivot++
-
-	// 				// swap moves at i and pivot
-	// 				swap := moves[i]
-	// 				moves[i] = moves[pivot]
-	// 				moves[pivot] = swap
-
-	// 				// swap scores at i and pivot
-	// 				swapScore := scores[i]
-	// 				scores[i] = scores[pivot]
-	// 				scores[pivot] = swapScore
-	// 			}
-	// 		}
-
-	// 		// Swap scores and moves at i and pivot
-	// 		scores[low] = scores[pivot]
-	// 		scores[pivot] = pivotVal
-	// 		swap := moves[low]
-	// 		moves[low] = moves[pivot]
-	// 		moves[pivot] = swap
-
-	// 		recQuickSort(low, pivot-1)
-	// 		recQuickSort(pivot+1, high)
-	// 	}
-	// }
-	// recQuickSort(0, len(moves)-1)
-
-	// An alternative implementation with insertion sort
+	// Sort the moves
 	for i := 0; i < len(moves); i++ {
 		score := scores[i]
 		move := moves[i]
@@ -151,7 +125,8 @@ func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *
 	}
 
 	bestMove := legalMoves[0]
-	bestScore := -1_000_000
+	bestScore := -10_000_000
+	bestPositionalScore := -10_000_000
 	mainLine := []*Move{}
 
 	for i := 0; i < len(legalMoves); i++ {
@@ -164,10 +139,21 @@ func (eng *BruteForceEngine) NegaMax(depth int, endTime time.Time, evaluations *
 
 		score, variation := eng.recNegaMax(depth-1, -1_000_000, -bestScore, evaluations, quiescentEvaluations)
 		score = -score
+
 		if score > bestScore {
 			bestScore = score
+			bestPositionalScore = -eng.StaticEvaluation()
 			bestMove = legalMoves[i]
 			mainLine = append(variation, legalMoves[i])
+		} else if score == bestScore {
+			// When the minimax score is the same choose the move with the better static evaluation
+			positionalScore := -eng.StaticEvaluation()
+			if positionalScore > bestPositionalScore {
+				bestScore = score
+				bestPositionalScore = positionalScore
+				bestMove = legalMoves[i]
+				mainLine = append(variation, legalMoves[i])
+			}
 		}
 
 		eng.game.UndoMove()
@@ -202,7 +188,7 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 		return eng.StaticEvaluation(), []*Move{}
 	}
 
-	bestScore := -1_000_000
+	bestScore := -10_000_000
 	mainLine := []*Move{}
 	if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
 		if !value.LowerBound() {
@@ -231,6 +217,8 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 
 		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
 		score = -score
+		eng.game.UndoMove()
+
 		if score > bestScore {
 			bestScore = score
 			mainLine = append(variation, legalMoves[i])
@@ -238,17 +226,15 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 			if bestScore > alpha {
 				alpha = bestScore
 
-				if alpha >= beta && eng.AlphaBetaPruningEnabled {
-					eng.game.UndoMove()
+				if alpha > beta && eng.AlphaBetaPruningEnabled {
 
 					hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
 					evaluationCache.Set(eng.game.position.hash.Key(), hash)
+
 					return alpha, mainLine
 				}
 			}
 		}
-
-		eng.game.UndoMove()
 	}
 
 	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), false)
@@ -278,7 +264,7 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 		legalMoves = eng.game.LegalMoves()
 	}
 
-	var bestScore int
+	var bestScore int = -10_000_000
 	mainLine := []*Move{}
 	// Lookup in both caches
 	if found, value := quiescentCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
@@ -286,7 +272,7 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 			return value.Evaluation(), mainLine
 		}
 
-		bestScore := value.Evaluation()
+		bestScore = value.Evaluation()
 		if bestScore > alpha {
 			alpha = bestScore
 
@@ -299,7 +285,7 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 			return value.Evaluation(), mainLine
 		}
 
-		bestScore := value.Evaluation()
+		bestScore = value.Evaluation()
 		if bestScore > alpha {
 			alpha = bestScore
 
@@ -310,17 +296,35 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 	} else {
 		// Replace with null move evaluation
 		bestScore = eng.StaticEvaluation()
+
+		// Null move heuristic
+		// eng.game.Move(&NullMove)
+		// score, _ := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
+		// bestScore = score
+		// eng.game.UndoMove()
+
+		// if bestScore > alpha {
+		// 	alpha = bestScore
+
+		// 	if alpha >= beta && eng.AlphaBetaPruningEnabled {
+		// 		hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+		// 		quiescentCache.Set(eng.game.position.hash.Key(), hash)
+		// 		return alpha, mainLine
+		// 	}
+		// }
 	}
 
 	captureMoveFound := false
 
 	for i := 0; i < len(legalMoves); i++ {
-		if legalMoves[i].IsCapture() {
+		if eng.game.position.inCheck || legalMoves[i].IsCapture() {
 			captureMoveFound = true
 			eng.game.Move(legalMoves[i])
 
 			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
 			score = -score
+			eng.game.UndoMove()
+
 			if score > bestScore {
 				bestScore = score
 				mainLine = append(variation, legalMoves[i])
@@ -328,8 +332,7 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 				if bestScore > alpha {
 					alpha = bestScore
 
-					if alpha >= beta && eng.AlphaBetaPruningEnabled {
-						eng.game.UndoMove()
+					if alpha > beta && eng.AlphaBetaPruningEnabled {
 
 						hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
 						quiescentCache.Set(eng.game.position.hash.Key(), hash)
@@ -337,8 +340,6 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 					}
 				}
 			}
-
-			eng.game.UndoMove()
 		}
 	}
 

@@ -99,12 +99,15 @@ func doubledOrIsolatedPawnsPenalties(pos *Position, precomputedData *Precomputed
 
 		if precomputedData.DoublePawnsSidesMasks[sq]&pos.board.bbWhitePawn == 0 {
 			if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbWhitePawn != 0 {
-				// doubled pawns
+				// doubled isolated pawns
 				score -= 90
 			} else {
 				// isolated pawn
 				score -= 45
 			}
+		} else if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbWhitePawn != 0 {
+			// doubled pawn with neighbouring pawn
+			score -= 45
 		}
 
 	}
@@ -122,6 +125,9 @@ func doubledOrIsolatedPawnsPenalties(pos *Position, precomputedData *Precomputed
 				// isolated pawn
 				score += 45
 			}
+		} else if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbBlackPawn != 0 {
+			// doubled pawn with neighbouring pawn
+			score += 45
 		}
 	}
 

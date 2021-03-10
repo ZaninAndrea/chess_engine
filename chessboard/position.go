@@ -46,7 +46,7 @@ type Position struct {
 
 func (pos Position) String() string {
 	s := pos.board.String() + "\n"
-	s += fmt.Sprintf("Turn: %s, CastleRights: %s, EnPassantSquare: %s, HalfMove: %d, Move: %d", pos.turn, pos.castleRights, pos.enPassantSquare, pos.halfMoveClock, pos.moveCount)
+	s += fmt.Sprintf("Turn: %s, In check: %t, CastleRights: %s, EnPassantSquare: %s, HalfMove: %d, Move: %d", pos.turn, pos.inCheck, pos.castleRights, pos.enPassantSquare, pos.halfMoveClock, pos.moveCount)
 
 	return s
 }
@@ -58,7 +58,10 @@ func (pos *Position) Hash() ZobristHash {
 
 // Move returns a new position applying the move, the operation is NOT in place
 func (pos Position) Move(move *Move) Position {
-	pos.hash ^= pos.board.Move(move)
+	// Check whether the move passed is the null move
+	if move.from != NoSquare {
+		pos.hash ^= pos.board.Move(move)
+	}
 	pos.turn = pos.turn.Other()
 	pos.hash ^= zobristHashBlackTurn
 

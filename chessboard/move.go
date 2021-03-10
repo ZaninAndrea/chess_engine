@@ -51,3 +51,8 @@ func (m *Move) IsDoublePawnPush() bool {
 func (m *Move) IsCapture() bool {
 	return m.flags&IsCaptureFlag != 0
 }
+
+var NullMove = Move{
+	from: NoSquare,
+	to:   NoSquare,
+}

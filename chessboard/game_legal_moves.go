@@ -41,7 +41,7 @@ func (game *Game) LegalMoves() []*Move {
 	return legalMoves
 }
 
-// Takes a pseudolegal move and checks whether is is also legal (will king be checked?)
+// Takes a pseudolegal move and checks whether it is also legal (will king be checked?)
 func checkMoveLegality(move *Move, game *Game) bool {
 	simulationBoard := game.position.board
 	simulationBoard.Move(move)
@@ -53,7 +53,7 @@ func checkMoveLegality(move *Move, game *Game) bool {
 		kingSquare = simulationBoard.blackKingSquare
 	}
 
-	return !simulationBoard.IsUnderAttack(game, kingSquare)
+	return !simulationBoard.IsUnderAttack(&game.precomputedData, game.position.turn, kingSquare)
 }
 
 // Bitboards for the squares that must be empty in order to castle
@@ -88,33 +88,33 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	if game.position.turn == WhiteColor {
 		if game.position.castleRights.WhiteKingSide &&
 			(InBetweenWhiteKingCastle&game.position.board.emptySquares == InBetweenWhiteKingCastle) &&
-			!game.position.board.IsUnderAttack(game, E1) &&
-			!game.position.board.IsUnderAttack(game, F1) &&
-			!game.position.board.IsUnderAttack(game, G1) {
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E1) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, F1) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, G1) {
 			*moves = append(*moves, &Move{from: E1, to: G1, flags: WhiteKingCastleFlag})
 		}
 
 		if game.position.castleRights.WhiteQueenSide &&
 			(InBetweenWhiteQueenCastle&game.position.board.emptySquares == InBetweenWhiteQueenCastle) &&
-			!game.position.board.IsUnderAttack(game, E1) &&
-			!game.position.board.IsUnderAttack(game, D1) &&
-			!game.position.board.IsUnderAttack(game, C1) {
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E1) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, D1) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, C1) {
 			*moves = append(*moves, &Move{from: E1, to: C1, flags: WhiteQueenCastleFlag})
 		}
 	} else {
 		if game.position.castleRights.BlackKingSide &&
 			(InBetweenBlackKingCastle&game.position.board.emptySquares == InBetweenBlackKingCastle) &&
-			!game.position.board.IsUnderAttack(game, E8) &&
-			!game.position.board.IsUnderAttack(game, F8) &&
-			!game.position.board.IsUnderAttack(game, G8) {
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E8) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, F8) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, G8) {
 			*moves = append(*moves, &Move{from: E8, to: G8, flags: BlackKingCastleFlag})
 		}
 
 		if game.position.castleRights.BlackQueenSide &&
 			(InBetweenBlackQueenCastle&game.position.board.emptySquares == InBetweenBlackQueenCastle) &&
-			!game.position.board.IsUnderAttack(game, E8) &&
-			!game.position.board.IsUnderAttack(game, D8) &&
-			!game.position.board.IsUnderAttack(game, C8) {
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E8) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, D8) &&
+			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, C8) {
 			*moves = append(*moves, &Move{from: E8, to: C8, flags: BlackQueenCastleFlag})
 		}
 

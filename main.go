@@ -19,10 +19,11 @@ func main() {
 	for game.Result() == chessboard.NoResult {
 		// time.Sleep(800 * time.Millisecond)
 		fmt.Println()
-		game.Move(engine.BestMove(180))
+		game.Move(engine.BestMove(600))
 
 		// fmt.Print("\033[H\033[2J")
 		fmt.Println(game.Position())
+		fmt.Println(engine.PositionAnalysisString())
 	}
 
 	fmt.Println(game.Result())

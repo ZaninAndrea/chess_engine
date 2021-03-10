@@ -233,13 +233,13 @@ func (b *Board) Move(move *Move) ZobristHash {
 }
 
 // IsUnderAttack returns whether the current board is in check
-func (board *Board) IsUnderAttack(game *Game, sq square) bool {
+func (board *Board) IsUnderAttack(precomputedData *PrecomputedData, turn Color, sq square) bool {
 	var enemyKnights Bitboard
 	var enemyBishopLikes Bitboard
 	var enemyRookLikes Bitboard
 	var enemyKing Bitboard
 
-	if game.position.turn == WhiteColor {
+	if turn == WhiteColor {
 		enemyKnights = board.bbBlackKnight
 		enemyBishopLikes = board.bbBlackBishop | board.bbBlackQueen
 		enemyRookLikes = board.bbBlackRook | board.bbBlackQueen
@@ -251,35 +251,35 @@ func (board *Board) IsUnderAttack(game *Game, sq square) bool {
 		enemyKing = board.bbWhiteKing
 	}
 
-	kingCollisions := game.precomputedData.KingMoves[sq] & enemyKing
+	kingCollisions := precomputedData.KingMoves[sq] & enemyKing
 	if kingCollisions != 0 {
 		return true
 	}
 
 	// Simulate putting a knight in the square where the allied king is, if the simulated
 	// knight attacks an enemy knight then our king is in check by an enemy knight
-	knightCollisions := game.precomputedData.KnightMoves[sq] & enemyKnights
+	knightCollisions := precomputedData.KnightMoves[sq] & enemyKnights
 	if knightCollisions != 0 {
 		return true
 	}
 
 	// Simulate rook and queens moving horizontally/vertically
-	blockers := (^board.emptySquares) & game.precomputedData.RookMasks[sq]
-	key := (uint64(blockers) * game.precomputedData.RookMagics[sq]) >> (64 - game.precomputedData.RookIndexBits[sq])
-	rookCollisions := game.precomputedData.RookMoves[sq][key] & enemyRookLikes
+	blockers := (^board.emptySquares) & precomputedData.RookMasks[sq]
+	key := (uint64(blockers) * precomputedData.RookMagics[sq]) >> (64 - precomputedData.RookIndexBits[sq])
+	rookCollisions := precomputedData.RookMoves[sq][key] & enemyRookLikes
 	if rookCollisions != 0 {
 		return true
 	}
 
 	// Simulate bishop and queens moving diagonally
-	blockers = (^board.emptySquares) & game.precomputedData.BishopMasks[sq]
-	key = (uint64(blockers) * game.precomputedData.BishopMagics[sq]) >> (64 - game.precomputedData.BishopIndexBits[sq])
-	bishopCollisions := game.precomputedData.BishopMoves[sq][key] & enemyBishopLikes
+	blockers = (^board.emptySquares) & precomputedData.BishopMasks[sq]
+	key = (uint64(blockers) * precomputedData.BishopMagics[sq]) >> (64 - precomputedData.BishopIndexBits[sq])
+	bishopCollisions := precomputedData.BishopMoves[sq][key] & enemyBishopLikes
 	if bishopCollisions != 0 {
 		return true
 	}
 
-	if game.position.turn == WhiteColor {
+	if turn == WhiteColor {
 		if sq < H7 && sq%8 != 0 {
 			upLeftSquare := (sq + 7).Bitboard()
 
