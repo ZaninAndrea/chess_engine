@@ -35,6 +35,7 @@ type BruteForceEngine struct {
 // NewBruteForceEngine initializes a BruteForceEngine
 func NewBruteForceEngine(game *Game) *BruteForceEngine {
 	return &BruteForceEngine{trackedGame: game,
+		game:                      *game,
 		MaterialDifferenceEval:    true,
 		PositionDifferenceEval:    true,
 		QuiescentSearchEnabled:    true,
