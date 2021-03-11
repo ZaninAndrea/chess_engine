@@ -1,162 +1,396 @@
 package chessboard
 
-// Engine is the common interface for all the implemented AIs
-type Engine interface {
-	BestMove(remainingTime int) *Move
+import (
+	"fmt"
+	"time"
+)
+
+// Infinity contains a very high int16 number
+const Infinity = 15_000_000
+
+// CheckmateScore contains the score given to a checkmate loss
+const CheckmateScore = -1_000_000
+
+// DrawScore contains the score given to a draw
+const DrawScore = 0
+
+// BruteForceEngine explores all the tree to find the best move
+type BruteForceEngine struct {
+	trackedGame               *Game
+	game                      Game
+	MaxDepth                  int
+	MaterialDifferenceEval    bool
+	PositionDifferenceEval    bool
+	CenterControlEval         bool
+	DoubledIsolatedPawnsEval  bool
+	PassedPawnsEval           bool
+	QuiescentSearchEnabled    bool
+	AlphaBetaPruningEnabled   bool
+	TranspositionTableEnabled bool
+	MoveSortingEnabled        bool
+	AspirationSearchEnabled   bool
+	AspirationWindowWidth     int
 }
 
-func materialDifference(pos *Position) int {
-	pawnDifference := pos.board.bbWhitePawn.PopCount() - pos.board.bbBlackPawn.PopCount()
-	knightDifference := pos.board.bbWhiteKnight.PopCount() - pos.board.bbBlackKnight.PopCount()
-	bishopDifference := pos.board.bbWhiteBishop.PopCount() - pos.board.bbBlackBishop.PopCount()
-	rookDifference := pos.board.bbWhiteRook.PopCount() - pos.board.bbBlackRook.PopCount()
-	queenDifference := pos.board.bbWhiteQueen.PopCount() - pos.board.bbBlackQueen.PopCount()
-
-	return (pawnDifference * 256) +
-		(knightDifference * 832) +
-		(bishopDifference * 896) +
-		(rookDifference * 1280) +
-		(queenDifference * 2496)
+// NewBruteForceEngine initializes a BruteForceEngine
+func NewBruteForceEngine(game *Game) *BruteForceEngine {
+	return &BruteForceEngine{trackedGame: game,
+		MaterialDifferenceEval:    true,
+		PositionDifferenceEval:    true,
+		QuiescentSearchEnabled:    true,
+		AlphaBetaPruningEnabled:   true,
+		CenterControlEval:         true,
+		TranspositionTableEnabled: false,
+		MoveSortingEnabled:        true,
+		DoubledIsolatedPawnsEval:  true,
+		PassedPawnsEval:           true,
+		MaxDepth:                  -1,
+		AspirationSearchEnabled:   true,
+		AspirationWindowWidth:     180,
+	}
 }
 
-// Values from https://www.chessprogramming.org/Simplified_Evaluation_Function converted to 256th of a pawn
-var pawnSquareValue = [64]int{0, 0, 0, 0, 0, 0, 0, 0, 12, 25, 25, -51, -51, 25, 25, 12, 12, -12, -25, 0, 0, -25, -12, 12, 0, 0, 0, 51, 51, 0, 0, 0, 12, 12, 25, 64, 64, 25, 12, 12, 25, 25, 51, 76, 76, 51, 25, 25, 128, 128, 128, 128, 128, 128, 128, 128, 0, 0, 0, 0, 0, 0, 0, 0}
-var knightSquareValue = [64]int{-128, -102, -76, -76, -76, -76, -102, -128, -102, -51, 0, 12, 12, 0, -51, -102, -76, 12, 25, 38, 38, 25, 12, -76, -76, 0, 38, 51, 51, 38, 0, -76, -76, 12, 38, 51, 51, 38, 12, -76, -76, 0, 25, 38, 38, 25, 0, -76, -102, -51, 0, 0, 0, 0, -51, -102, -128, -102, -76, -76, -76, -76, -102, -128}
-var bishopSquareValue = [64]int{-51, -25, -25, -25, -25, -25, -25, -51, -25, 12, 0, 0, 0, 0, 12, -25, -25, 25, 25, 25, 25, 25, 25, -25, -25, 0, 25, 25, 25, 25, 0, -25, -25, 12, 12, 25, 25, 12, 12, -25, -25, 0, 12, 25, 25, 12, 0, -25, -25, 0, 0, 0, 0, 0, 0, -25, -51, -25, -25, -25, -25, -25, -25, -51}
-var rookSquareValue = [64]int{0, 0, 0, 12, 12, 0, 0, 0, -12, 0, 0, 0, 0, 0, 0, -12, -12, 0, 0, 0, 0, 0, 0, -12, -12, 0, 0, 0, 0, 0, 0, -12, -12, 0, 0, 0, 0, 0, 0, -12, -12, 0, 0, 0, 0, 0, 0, -12, 12, 25, 25, 25, 25, 25, 25, 12, 0, 0, 0, 0, 0, 0, 0, 0}
-var queenSquareValue = [64]int{-51, -25, -25, -12, -12, -25, -25, -51, -25, 0, 12, 0, 0, 0, 0, -25, -25, 12, 12, 12, 12, 12, 0, -25, 0, 0, 12, 12, 12, 12, 0, -12, -12, 0, 12, 12, 12, 12, 0, -12, -25, 0, 12, 12, 12, 12, 0, -25, -25, 0, 0, 0, 0, 0, 0, -25, -51, -25, -25, -12, -12, -25, -25, -51}
-var kingMiddleGameSquareValue = [64]int{51, 76, 25, 0, 0, 25, 76, 51, 51, 51, 0, 0, 0, 0, 51, 51, -25, -51, -51, -51, -51, -51, -51, -25, -51, -76, -76, -102, -102, -76, -76, -51, -76, -102, -102, -128, -128, -102, -102, -76, -76, -102, -102, -128, -128, -102, -102, -76, -76, -102, -102, -128, -128, -102, -102, -76, -76, -102, -102, -128, -128, -102, -102, -76}
-var kingEndGameSquareValue = [64]int{-128, -76, -76, -76, -76, -76, -76, -128, -76, -76, 0, 0, 0, 0, -76, -76, -76, -25, 51, 76, 76, 51, -25, -76, -76, -25, 76, 102, 102, 76, -25, -76, -76, -25, 76, 102, 102, 76, -25, -76, -76, -25, 51, 76, 76, 51, -25, -76, -76, -51, -25, 0, 0, -25, -51, -76, -128, -102, -76, -51, -51, -76, -102, -128}
+var _nodeHits = 0
 
-func positionDifference(pos *Position) int {
-	score := 0
+// BestMove returns the best move as computed by the AI
+func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
+	var endTime time.Time
+	if eng.MaxDepth == -1 {
+		endTime = time.Now().Add(time.Duration(remainingTime) * (time.Second / 40))
+	} else {
+		endTime = time.Now().Add(720 * time.Hour)
+	}
 
-	score += pieceSquareValues(pos.board.bbWhitePawn, &pawnSquareValue, true) -
-		pieceSquareValues(pos.board.bbBlackPawn, &pawnSquareValue, false)
-	score += pieceSquareValues(pos.board.bbWhiteKnight, &knightSquareValue, true) -
-		pieceSquareValues(pos.board.bbBlackKnight, &knightSquareValue, false)
-	score += pieceSquareValues(pos.board.bbWhiteBishop, &bishopSquareValue, true) -
-		pieceSquareValues(pos.board.bbBlackBishop, &bishopSquareValue, false)
-	score += pieceSquareValues(pos.board.bbWhiteRook, &rookSquareValue, true) -
-		pieceSquareValues(pos.board.bbBlackRook, &rookSquareValue, false)
-	score += pieceSquareValues(pos.board.bbWhiteQueen, &queenSquareValue, true) -
-		pieceSquareValues(pos.board.bbBlackQueen, &queenSquareValue, false)
-	score += pieceSquareValues(pos.board.bbWhiteKing, &kingMiddleGameSquareValue, true) -
-		pieceSquareValues(pos.board.bbBlackKing, &kingMiddleGameSquareValue, false)
+	eng.game = *eng.trackedGame
 
-	return score
+	_nodeHits = 0
+	_zobristCacheHits = 0
+	_zobristCacheMisses = 0
+
+	move := eng.game.LegalMoves()[0]
+	evaluations := &(ZobristTable{})
+	quiescentEvaluations := &(ZobristTable{})
+	depth := 1
+	previousScore := eng.StaticEvaluation()
+	for eng.MaxDepth == -1 || depth <= eng.MaxDepth {
+		var aborted bool
+		var bestMove *Move
+		var score int
+
+		if eng.AspirationSearchEnabled {
+			aborted, bestMove, score = eng.NegaMax(
+				depth,
+				previousScore-eng.AspirationWindowWidth,
+				previousScore+eng.AspirationWindowWidth,
+				endTime,
+				evaluations,
+				quiescentEvaluations,
+			)
+
+			if aborted {
+				break
+			}
+		}
+
+		// If the aspiration search is disabled than we perform a full search directly
+		// If the evaluation from the aspiration search is outside the bound of the aspiration window we must research
+		if !eng.AspirationSearchEnabled || score >= previousScore+eng.AspirationWindowWidth || score <= previousScore-eng.AspirationWindowWidth {
+			aborted, bestMove, score = eng.NegaMax(
+				depth,
+				-Infinity,
+				Infinity,
+				endTime,
+				evaluations,
+				quiescentEvaluations,
+			)
+		}
+
+		if aborted {
+			break
+		}
+
+		move = bestMove
+		previousScore = score
+		depth++
+	}
+
+	fmt.Printf("Depth reached: %d, Nodes explored: %d, Cache hits: %d, Cache misses: %d\n", depth-1, _nodeHits, _zobristCacheHits, _zobristCacheMisses)
+
+	return move
 }
 
-func pieceSquareValues(piece Bitboard, values *[64]int, isWhite bool) int {
-	score := 0
+// NegaMax does a negamax search of the tree up to the passed depth
+func (eng *BruteForceEngine) NegaMax(depth int, alpha int, beta int, endTime time.Time, evaluations *ZobristTable, quiescentEvaluations *ZobristTable) (bool, *Move, int) {
+	var legalMoves []*Move
 
-	if isWhite {
-		for piece != 0 {
-			sq := piece.LeastSignificant1Bit()
-			piece.ClearLeastSignificant1Bit()
+	// We can use the evaluation score from the previous iteration to sort the moves,
+	// exploring first the moves that have the highest chance of being the best one
+	// allows the alpha-beta algorithm to prune more branches
+	if eng.MoveSortingEnabled {
+		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluations)
+	} else {
+		legalMoves = eng.game.LegalMoves()
+	}
 
-			score += (*values)[sq]
+	bestMove := legalMoves[0]
+	bestScore := -Infinity
+	bestPositionalScore := -Infinity
+
+	// mainLine is a diagnostic value that tracks what the bot thinks
+	// would be the perfect game from now on
+	mainLine := []*Move{}
+
+	// Try each move, recursively compute the score of the resulting position and
+	// choose the best move for us (that is the worst for our opponent)
+	for i := 0; i < len(legalMoves); i++ {
+		// Abort search if running out of time
+		if time.Now().After(endTime) {
+			return true, nil, 0
+		}
+
+		eng.game.Move(legalMoves[i])
+
+		// Get the evaluation of the position from our opponents point of view and flip it (best for us is worst for our opponent)
+		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluations, quiescentEvaluations)
+		score = -score
+
+		if score > bestScore {
+			bestScore = score
+			bestPositionalScore = -eng.StaticEvaluation()
+			bestMove = legalMoves[i]
+			mainLine = append(variation, legalMoves[i])
+
+			if bestScore > alpha {
+				alpha = bestScore
+
+				// The score will be outside the bounds of the aspiration window, so we can
+				// stop the search already
+				if alpha > beta && eng.AlphaBetaPruningEnabled {
+					eng.game.UndoMove()
+					return false, bestMove, alpha
+				}
+			}
+		} else if score == bestScore {
+			// When the score is the same choose the move with the better static evaluation
+			positionalScore := -eng.StaticEvaluation()
+			if positionalScore > bestPositionalScore {
+				bestScore = score
+				bestPositionalScore = positionalScore
+				bestMove = legalMoves[i]
+				mainLine = append(variation, legalMoves[i])
+			}
+		}
+
+		eng.game.UndoMove()
+	}
+
+	// Log diagnostics about the best move found with this depth of search
+	fmt.Printf("Depth: %d, Score: %d, Main line: ", depth, bestScore)
+	for i := len(mainLine) - 1; i >= 0; i-- {
+		fmt.Printf("%s ", *mainLine[i])
+	}
+	fmt.Println()
+
+	return false, bestMove, bestScore
+}
+
+func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []*Move) {
+	_nodeHits++
+
+	switch eng.game.Result() {
+	case Draw:
+		return DrawScore, []*Move{}
+	case Checkmate:
+		return CheckmateScore, []*Move{}
+	}
+
+	if depth == 0 {
+		// When reaching depth 0 we can procede the search deeper but considering only capture
+		// moves, this way mitigate the horizon effect and correctly assess trades
+		if eng.QuiescentSearchEnabled {
+			_nodeHits-- // avoid double counting this node
+			return eng.quiescentSearch(7, alpha, beta, evaluationCache, quiescentCache)
+		}
+
+		return eng.StaticEvaluation(), []*Move{}
+	}
+
+	bestScore := -Infinity
+	mainLine := []*Move{}
+
+	// If this position's evaluation is cached we don't need to recompute it, we could have also stored a lower bound
+	// because the search had been stopped by alpha-beta pruning.
+	if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
+		if !value.LowerBound() {
+			return value.Evaluation(), mainLine
+		}
+
+		bestScore := value.Evaluation()
+		if bestScore > alpha {
+			alpha = bestScore
+
+			if alpha >= beta {
+				return alpha, mainLine
+			}
+		}
+	}
+
+	var legalMoves []*Move
+	// Sorting the moves using the past evaluations allows us to evaluate first the moves that have a high
+	// probability of being the best, this makes alpha-beta pruning more effective
+	if eng.MoveSortingEnabled {
+		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluationCache)
+	} else {
+		legalMoves = eng.game.LegalMoves()
+	}
+
+	for i := 0; i < len(legalMoves); i++ {
+		eng.game.Move(legalMoves[i])
+
+		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
+		score = -score
+		eng.game.UndoMove()
+
+		if score > bestScore {
+			bestScore = score
+			mainLine = append(variation, legalMoves[i])
+
+			if bestScore > alpha {
+				alpha = bestScore
+
+				// If we find a position that is too good we can stop the search, because the player making the
+				// previous move will opt for a move giving us a weaker position.
+				if alpha > beta && eng.AlphaBetaPruningEnabled {
+					// Store evaluation in the cache
+					hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+					evaluationCache.Set(eng.game.position.hash.Key(), hash)
+
+					return alpha, mainLine
+				}
+			}
+		}
+	}
+
+	// Store evaluation in the cache
+	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), false)
+	evaluationCache.Set(eng.game.position.hash.Key(), hash)
+
+	return bestScore, mainLine
+}
+
+func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []*Move) {
+	_nodeHits++
+
+	switch eng.game.Result() {
+	case Draw:
+		return DrawScore, []*Move{}
+	case Checkmate:
+		return CheckmateScore, []*Move{}
+	}
+
+	// At depth 0 we statically evaluate the position with the implemented heuristics
+	if depth == 0 {
+		return eng.StaticEvaluation(), []*Move{}
+	}
+
+	var legalMoves []*Move
+	if eng.MoveSortingEnabled {
+		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluationCache)
+	} else {
+		legalMoves = eng.game.LegalMoves()
+	}
+
+	var bestScore int = -Infinity
+	mainLine := []*Move{}
+	// Inside the quiescent search we can read evaluations from both the quiescent evaluations cache
+	// and the full evaluation cache; the latter don't need to be depth checked, because they surely
+	// searched deeper than the quiescent search would do.
+	if found, value := quiescentCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
+		if !value.LowerBound() {
+			return value.Evaluation(), mainLine
+		}
+
+		bestScore = value.Evaluation()
+		if bestScore > alpha {
+			alpha = bestScore
+
+			if alpha >= beta {
+				return alpha, mainLine
+			}
+		}
+	} else if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
+		if !value.LowerBound() {
+			return value.Evaluation(), mainLine
+		}
+
+		bestScore = value.Evaluation()
+		if bestScore > alpha {
+			alpha = bestScore
+
+			if alpha >= beta {
+				return alpha, mainLine
+			}
 		}
 	} else {
-		for piece != 0 {
-			sq := piece.LeastSignificant1Bit()
-			piece.ClearLeastSignificant1Bit()
+		// Replace with null move evaluation
+		bestScore = eng.StaticEvaluation()
 
-			invertedSquare := SquareFromFileRank(sq%8, 7-(sq/8))
-			score += (*values)[invertedSquare]
-		}
+		// Null move heuristic
+		// eng.game.Move(&NullMove)
+		// score, _ := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
+		// bestScore = score
+		// eng.game.UndoMove()
+
+		// if bestScore > alpha {
+		// 	alpha = bestScore
+
+		// 	if alpha >= beta && eng.AlphaBetaPruningEnabled {
+		// 		hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+		// 		quiescentCache.Set(eng.game.position.hash.Key(), hash)
+		// 		return alpha, mainLine
+		// 	}
+		// }
 	}
 
-	return score
-}
+	// If there are no disruptive moves, then we have found a quiescent position,
+	// we can stop the search and evaluate statically this position
+	disruptiveMoveFound := false
 
-var centerBitboard = D4.Bitboard() | D5.Bitboard() | E4.Bitboard() | E5.Bitboard()
+	for i := 0; i < len(legalMoves); i++ {
+		if eng.game.position.inCheck || legalMoves[i].IsCapture() {
+			disruptiveMoveFound = true
 
-func centerControl(pos *Position) int {
-	score := 0
+			eng.game.Move(legalMoves[i])
+			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
+			score = -score
+			eng.game.UndoMove()
 
-	if pos.board.bbWhitePawn&centerBitboard != 0 {
-		score += 70
-	}
-	if pos.board.bbBlackPawn&centerBitboard != 0 {
-		score -= 70
-	}
+			if score > bestScore {
+				bestScore = score
+				mainLine = append(variation, legalMoves[i])
 
-	return score
-}
+				if bestScore > alpha {
+					alpha = bestScore
 
-// Computes penalties for
-// - doubled pawns, that is when there are 2 same color pawns in the same file
-//   and in the neighbouring files there are no pawns of that same color
-// - isolated pawn, that is a file with a single pawn and without pawns in the neighbouring files
-func doubledOrIsolatedPawnsPenalties(pos *Position, precomputedData *PrecomputedData) int {
-	score := 0
-
-	whitePawns := pos.board.bbWhitePawn
-	for whitePawns != 0 {
-		sq := whitePawns.LeastSignificant1Bit()
-		whitePawns.ClearLeastSignificant1Bit()
-
-		if precomputedData.DoublePawnsSidesMasks[sq]&pos.board.bbWhitePawn == 0 {
-			if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbWhitePawn != 0 {
-				// doubled isolated pawns
-				score -= 90
-			} else {
-				// isolated pawn
-				score -= 45
+					if alpha > beta && eng.AlphaBetaPruningEnabled {
+						// Store the evaluation in the cache
+						hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+						quiescentCache.Set(eng.game.position.hash.Key(), hash)
+						return alpha, mainLine
+					}
+				}
 			}
-		} else if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbWhitePawn != 0 {
-			// doubled pawn with neighbouring pawn
-			score -= 45
-		}
-
-	}
-
-	blackPawns := pos.board.bbBlackPawn
-	for blackPawns != 0 {
-		sq := blackPawns.LeastSignificant1Bit()
-		blackPawns.ClearLeastSignificant1Bit()
-
-		if precomputedData.DoublePawnsSidesMasks[sq]&pos.board.bbBlackPawn == 0 {
-			if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbBlackPawn != 0 {
-				// doubled pawns
-				score += 90
-			} else {
-				// isolated pawn
-				score += 45
-			}
-		} else if precomputedData.DoublePawnsForwardMasks[sq]&pos.board.bbBlackPawn != 0 {
-			// doubled pawn with neighbouring pawn
-			score += 45
 		}
 	}
 
-	return score
-}
-
-// Compute bonuses for passed pawns
-func passedPawnsBonuses(pos *Position, precomputedData *PrecomputedData) int {
-	score := 0
-
-	whitePawns := pos.board.bbWhitePawn
-	for whitePawns != 0 {
-		sq := whitePawns.LeastSignificant1Bit()
-		whitePawns.ClearLeastSignificant1Bit()
-
-		if precomputedData.PassedPawnWhiteMasks[sq]&pos.board.bbBlackPawn == 0 {
-			score += 120
-		}
+	// When finding a quiescent position return the static evaluation
+	if !disruptiveMoveFound {
+		return eng.StaticEvaluation(), []*Move{}
 	}
 
-	blackPawns := pos.board.bbBlackPawn
-	for blackPawns != 0 {
-		sq := blackPawns.LeastSignificant1Bit()
-		blackPawns.ClearLeastSignificant1Bit()
+	// Store the evaluation in the cache
+	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), true)
+	quiescentCache.Set(eng.game.position.hash.Key(), hash)
 
-		if precomputedData.PassedPawnBlackMasks[sq]&pos.board.bbWhitePawn == 0 {
-			score -= 120
-		}
-	}
-
-	return score
+	return bestScore, mainLine
 }

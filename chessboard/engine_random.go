@@ -8,7 +8,7 @@ type RandomEngine struct {
 }
 
 // NewRandomEngine initializes a RandomEngine
-func NewRandomEngine(game *Game) Engine {
+func NewRandomEngine(game *Game) *RandomEngine {
 	return &RandomEngine{game: game}
 }
 

@@ -83,24 +83,24 @@ func (h ZobristHash) LowerBound() bool {
 // ZobristTable is an HashTable using the zobrist hash algorithm
 type ZobristTable [1 << zobristCacheSize]ZobristHash
 
-var zobristCacheHits = 0
-var zobristCacheMisses = 0
+var _zobristCacheHits = 0
+var _zobristCacheMisses = 0
 
 // Get gets an element from the table, returns a boolean value representing whether the
 // value was found and the value itself if found
 func (tb *ZobristTable) Get(hash ZobristHash) (bool, ZobristHash) {
 	key := hash.Key()
 	if tb[key] == 0 {
-		zobristCacheMisses++
+		_zobristCacheMisses++
 		return false, 0
 	}
 
 	if (tb[key] >> zobristCacheSize) != (hash.HashValue() >> zobristCacheSize) {
-		zobristCacheMisses++
+		_zobristCacheMisses++
 		return false, 0
 	}
 
-	zobristCacheHits++
+	_zobristCacheHits++
 	return true, tb[key]
 }
 
