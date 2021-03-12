@@ -1,11 +1,13 @@
 package main
 
 import (
+	"log"
 	"strconv"
 	"time"
 
 	"github.com/ZaninAndrea/chess_engine/chessboard"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,6 +50,8 @@ func main() {
 			"result": game.Result().String(),
 		})
 	})
+
+	log.Fatal(autotls.Run(r, "baidachess.westeurope.cloudapp.azure.com"))
 
 	r.Run()
 }

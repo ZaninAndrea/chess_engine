@@ -17,8 +17,8 @@ const roughSquare = ({ squareElement, squareWidth }) => {
 }
 const startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 const baseurl = window.location.host.startsWith("localhost")
-    ? "localhost"
-    : "baidachess.westeurope.cloudapp.azure.com"
+    ? "http://localhost"
+    : "https://baidachess.westeurope.cloudapp.azure.com"
 
 class App extends React.Component {
     constructor() {
@@ -39,8 +39,7 @@ class App extends React.Component {
 
         while (result === "NoResult") {
             let response = await fetch(
-                "http://" +
-                    baseurl +
+                baseurl +
                     ":8080/bestmove?time=" +
                     60 +
                     "&fen=" +
@@ -83,8 +82,7 @@ class App extends React.Component {
         if (result === "NoResult") {
             // Play computer move
             let response = await fetch(
-                "http://" +
-                    baseurl +
+                baseurl +
                     ":8080/bestmove?time=" +
                     120 +
                     "&fen=" +
