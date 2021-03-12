@@ -203,18 +203,23 @@ func (pos *Position) FEN() string {
 
 	fen += " "
 
+	castleRights := ""
 	if pos.castleRights.WhiteKingSide {
-		fen += "K"
+		castleRights += "K"
 	}
 	if pos.castleRights.WhiteQueenSide {
-		fen += "Q"
+		castleRights += "Q"
 	}
 	if pos.castleRights.BlackKingSide {
-		fen += "k"
+		castleRights += "k"
 	}
 	if pos.castleRights.BlackQueenSide {
-		fen += "q"
+		castleRights += "q"
 	}
+	if castleRights == "" {
+		castleRights = "-"
+	}
+	fen += castleRights
 
 	fen += " "
 	fen += pos.enPassantSquare.String()

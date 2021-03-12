@@ -17,6 +17,7 @@ code {
     justify-content: space-around;
     align-items: center;
     flex-wrap: wrap;
+    flex-direction: column;
     width: 100vw;
     margin-top: 30px;
     margin-bottom: 50px;
