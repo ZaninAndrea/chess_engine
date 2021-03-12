@@ -1,12 +1,15 @@
 package chessboard
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"strconv"
 	"strings"
 )
+
+//go:embed precomputed.json
+var rawPrecomputedData []byte
 
 type Result int
 
@@ -150,13 +153,13 @@ func (game *Game) Position() Position {
 
 // LoadPrecomputedData loads all the precomputed data for fast move generation
 func (game *Game) LoadPrecomputedData(path string) {
-	jsonBytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
+	// jsonBytes, err := ioutil.ReadFile(path)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	var data PrecomputedData
-	err = json.Unmarshal(jsonBytes, &data)
+	err := json.Unmarshal(rawPrecomputedData, &data)
 	if err != nil {
 		panic(err)
 	}
@@ -175,7 +178,8 @@ func NewGameFromFEN(fen string) Game {
 	initializeZobristHashes()
 
 	game := Game{}
-	game.LoadPrecomputedData("/Users/andreazanin/Code/go/chess_engine/precomputed.json")
+
+	game.LoadPrecomputedData("precomputed.json")
 	game.positionsHistory = make([]*Position, 0, 40)
 	game.moves = make([]*Move, 0, 40)
 	pos := Position{}

@@ -15,8 +15,10 @@ const roughSquare = ({ squareElement, squareWidth }) => {
     })
     squareElement.appendChild(chessSquare)
 }
-const startFEN =
-    "r1bq1rk1/ppppnppp/2n5/1Bb1p3/4P3/2N2N2/PPPP1PPP/R1BQ1RK1 w - - 8 6"
+const startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+const baseurl = window.location.host.startsWith("localhost")
+    ? "localhost"
+    : "baidachess.westeurope.cloudapp.azure.com"
 
 class App extends React.Component {
     constructor() {
@@ -37,7 +39,9 @@ class App extends React.Component {
 
         while (result === "NoResult") {
             let response = await fetch(
-                "http://localhost:8080/bestmove?time=" +
+                "http://" +
+                    baseurl +
+                    ":8080/bestmove?time=" +
                     60 +
                     "&fen=" +
                     encodeURI(this.state.fen)
@@ -79,7 +83,9 @@ class App extends React.Component {
         if (result === "NoResult") {
             // Play computer move
             let response = await fetch(
-                "http://localhost:8080/bestmove?time=" +
+                "http://" +
+                    baseurl +
+                    ":8080/bestmove?time=" +
                     120 +
                     "&fen=" +
                     encodeURI(fen)

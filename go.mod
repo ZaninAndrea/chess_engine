@@ -1,6 +1,6 @@
 module github.com/ZaninAndrea/chess_engine
 
-go 1.14
+go 1.16
 
 require (
 	github.com/gin-contrib/cors v1.3.1
