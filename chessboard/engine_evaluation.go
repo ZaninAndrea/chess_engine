@@ -1,17 +1,34 @@
 package chessboard
 
 func materialDifference(pos *Position) int {
-	pawnDifference := pos.board.bbWhitePawn.PopCount() - pos.board.bbBlackPawn.PopCount()
-	knightDifference := pos.board.bbWhiteKnight.PopCount() - pos.board.bbBlackKnight.PopCount()
-	bishopDifference := pos.board.bbWhiteBishop.PopCount() - pos.board.bbBlackBishop.PopCount()
-	rookDifference := pos.board.bbWhiteRook.PopCount() - pos.board.bbBlackRook.PopCount()
-	queenDifference := pos.board.bbWhiteQueen.PopCount() - pos.board.bbBlackQueen.PopCount()
+	whitePawnCount := pos.board.bbWhitePawn.PopCount() * 256
+	blackPawnCount := pos.board.bbBlackPawn.PopCount() * 256
+	whiteKnightCount := pos.board.bbWhiteKnight.PopCount() * 832
+	blackKnightCount := pos.board.bbBlackKnight.PopCount() * 832
+	whiteBishopCount := pos.board.bbWhiteBishop.PopCount() * 896
+	blackBishopCount := pos.board.bbBlackBishop.PopCount() * 896
+	whiteRookCount := pos.board.bbWhiteRook.PopCount() * 1280
+	blackRookCount := pos.board.bbBlackRook.PopCount() * 1280
+	whiteQueenCount := pos.board.bbWhiteQueen.PopCount() * 2496
+	blackQueenCount := pos.board.bbBlackQueen.PopCount() * 2496
 
-	return (pawnDifference * 256) +
-		(knightDifference * 832) +
-		(bishopDifference * 896) +
-		(rookDifference * 1280) +
-		(queenDifference * 2496)
+	whiteTotal := whitePawnCount +
+		whiteKnightCount +
+		whiteBishopCount +
+		whiteRookCount +
+		whiteQueenCount
+	blackTotal := blackPawnCount +
+		blackKnightCount +
+		blackBishopCount +
+		blackRookCount +
+		blackQueenCount
+
+	difference := whiteTotal - blackTotal
+	total := whiteTotal + blackTotal
+	pieceRatio := (difference * 100) / (total + 1)
+
+	return difference +
+		pieceRatio
 }
 
 // Values from https://www.chessprogramming.org/Simplified_Evaluation_Function converted to 256th of a pawn
@@ -176,6 +193,9 @@ func (eng *BruteForceEngine) StaticEvaluation() int {
 	if eng.PassedPawnsEval {
 		score += passedPawnsBonuses(eng.game.position, &eng.game.precomputedData)
 	}
+
+	// Stabilizes fluctuations between even and odd depth evaluations
+	score += int(eng.game.position.turn) * 15
 
 	return score * int(eng.game.position.turn)
 }

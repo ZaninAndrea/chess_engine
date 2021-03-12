@@ -17,8 +17,8 @@ const roughSquare = ({ squareElement, squareWidth }) => {
 }
 const startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 const baseurl = window.location.host.startsWith("localhost")
-    ? "http://localhost"
-    : "https://baidachess.westeurope.cloudapp.azure.com"
+    ? "http://localhost:8080/"
+    : "https://baidachess.westeurope.cloudapp.azure.com/"
 
 class App extends React.Component {
     constructor() {
@@ -34,14 +34,14 @@ class App extends React.Component {
     }
 
     playGame = async () => {
-        this.setState({ result: "NoResult" })
+        this.setState({ result: "NoResult", userBlocked: true })
         let result = "NoResult"
 
         while (result === "NoResult") {
             let response = await fetch(
                 baseurl +
-                    ":8080/bestmove?time=" +
-                    60 +
+                    "bestmove?time=" +
+                    120 +
                     "&fen=" +
                     encodeURI(this.state.fen)
             ).then((res) => res.json())
@@ -82,18 +82,14 @@ class App extends React.Component {
         if (result === "NoResult") {
             // Play computer move
             let response = await fetch(
-                baseurl +
-                    ":8080/bestmove?time=" +
-                    120 +
-                    "&fen=" +
-                    encodeURI(fen)
+                baseurl + "bestmove?time=" + 120 + "&fen=" + encodeURI(fen)
             ).then((res) => res.json())
 
             this.game = new Chess(response.fen)
             this.setState({
                 fen: response.fen,
-                result: response.result,
-                userBlocked: false,
+                result: this.game.game_over() ? "GameEnded" : "NoResult",
+                userBlocked: this.game.game_over(),
             })
         }
     }
@@ -108,10 +104,17 @@ class App extends React.Component {
                 />
                 {this.state.result !== "NoResult" && (
                     <button id="start-game" onClick={() => this.playGame()}>
-                        START SELF-PLAY
+                        START BOT SELF-PLAY
                     </button>
                 )}
-                {this.state.userBlocked && <span>Thinking...</span>}
+                {this.state.userBlocked && this.state.result === "NoResult" && (
+                    <span>Thinking...</span>
+                )}
+                {this.state.userBlocked && this.state.result !== "NoResult" && (
+                    <span>
+                        Game ended, refresh the page to play another one
+                    </span>
+                )}
             </div>
         )
     }

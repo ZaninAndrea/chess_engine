@@ -51,7 +51,9 @@ func main() {
 		})
 	})
 
-	log.Fatal(autotls.Run(r, "baidachess.westeurope.cloudapp.azure.com"))
-
-	r.Run()
+	if gin.Mode() == "release" {
+		log.Fatal(autotls.Run(r, "baidachess.westeurope.cloudapp.azure.com"))
+	} else {
+		r.Run()
+	}
 }
