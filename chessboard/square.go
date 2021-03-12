@@ -18,7 +18,7 @@ func (s square) String() string {
 	file := s % 8
 	rank := s / 8
 
-	return fmt.Sprintf("%c%d", 65+int(file), rank+1)
+	return fmt.Sprintf("%c%d", 97+int(file), rank+1)
 }
 
 // Color returns the color of the square

@@ -1,6 +1,9 @@
 package chessboard
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // CastleRights stored information about which side each player
 // is still allowed to castle to
@@ -127,4 +130,98 @@ func (pos Position) Move(move *Move) Position {
 	}
 
 	return pos
+}
+
+func (pos *Position) FEN() string {
+	counter := 0
+	fen := ""
+
+	clearCounter := func() {
+		if counter == 0 {
+			return
+		}
+
+		fen += strconv.Itoa(counter)
+
+		counter = 0
+	}
+	for rank := 7; rank >= 0; rank-- {
+		for file := 0; file <= 7; file++ {
+			sq := SquareFromFileRank(file, rank)
+			piece := pos.board.Piece(sq)
+
+			if piece == NoPiece {
+				counter++
+				continue
+			}
+			clearCounter()
+
+			switch piece {
+			case WhiteKing:
+				fen += "K"
+			case WhiteQueen:
+				fen += "Q"
+			case WhiteRook:
+				fen += "R"
+			case WhiteBishop:
+				fen += "B"
+			case WhiteKnight:
+				fen += "N"
+			case WhitePawn:
+				fen += "P"
+			case BlackKing:
+				fen += "k"
+			case BlackQueen:
+				fen += "q"
+			case BlackRook:
+				fen += "r"
+			case BlackBishop:
+				fen += "b"
+			case BlackKnight:
+				fen += "n"
+			case BlackPawn:
+				fen += "p"
+			default:
+				panic("Unrecognized piece")
+			}
+		}
+
+		clearCounter()
+		if rank > 0 {
+			fen += "/"
+		}
+	}
+
+	fen += " "
+
+	switch pos.turn {
+	case WhiteColor:
+		fen += "w"
+	case BlackColor:
+		fen += "b"
+	}
+
+	fen += " "
+
+	if pos.castleRights.WhiteKingSide {
+		fen += "K"
+	}
+	if pos.castleRights.WhiteQueenSide {
+		fen += "Q"
+	}
+	if pos.castleRights.BlackKingSide {
+		fen += "k"
+	}
+	if pos.castleRights.BlackQueenSide {
+		fen += "q"
+	}
+
+	fen += " "
+	fen += pos.enPassantSquare.String()
+	fen += " "
+	fen += strconv.Itoa(pos.halfMoveClock)
+	fen += " "
+	fen += strconv.Itoa(pos.moveCount)
+
+	return fen
 }
