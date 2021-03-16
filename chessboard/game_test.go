@@ -12,6 +12,10 @@ func countAllMoves(game *Game, depth int) int {
 	total := 0
 	moves := game.LegalMoves()
 
+	if depth == 1 {
+		return len(moves)
+	}
+
 	for _, move := range moves {
 		game.Move(move)
 		total += countAllMoves(game, depth-1)

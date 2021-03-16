@@ -3,6 +3,8 @@ package chessboard
 import (
 	"fmt"
 	"time"
+
+	"github.com/dylhunn/dragontoothmg"
 )
 
 // Infinity contains a very high int16 number
@@ -17,7 +19,7 @@ const DrawScore = 0
 // BruteForceEngine explores all the tree to find the best move
 type BruteForceEngine struct {
 	trackedGame               *Game
-	game                      Game
+	game                      dragontoothmg.Board
 	MaxDepth                  int
 	MaterialDifferenceEval    bool
 	PositionDifferenceEval    bool
@@ -35,7 +37,7 @@ type BruteForceEngine struct {
 // NewBruteForceEngine initializes a BruteForceEngine
 func NewBruteForceEngine(game *Game) *BruteForceEngine {
 	return &BruteForceEngine{trackedGame: game,
-		game:                      *game,
+		game:                      dragontoothmg.ParseFen(game.position.FEN()),
 		MaterialDifferenceEval:    true,
 		PositionDifferenceEval:    true,
 		QuiescentSearchEnabled:    true,
@@ -54,7 +56,7 @@ func NewBruteForceEngine(game *Game) *BruteForceEngine {
 var _nodeHits = 0
 
 // BestMove returns the best move as computed by the AI
-func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
+func (eng *BruteForceEngine) BestMove(remainingTime int) dragontoothmg.Move {
 	var endTime time.Time
 	if eng.MaxDepth == -1 {
 		endTime = time.Now().Add(time.Duration(remainingTime) * (time.Second / 40))
@@ -62,20 +64,20 @@ func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
 		endTime = time.Now().Add(720 * time.Hour)
 	}
 
-	eng.game = *eng.trackedGame
+	eng.game = dragontoothmg.ParseFen(eng.trackedGame.position.FEN())
 
 	_nodeHits = 0
 	_zobristCacheHits = 0
 	_zobristCacheMisses = 0
 
-	move := eng.game.LegalMoves()[0]
+	move := eng.game.GenerateLegalMoves()[0]
 	evaluations := &(ZobristTable{})
 	quiescentEvaluations := &(ZobristTable{})
 	depth := 1
 	previousScore := eng.StaticEvaluation()
 	for eng.MaxDepth == -1 || depth <= eng.MaxDepth {
 		var aborted bool
-		var bestMove *Move
+		var bestMove dragontoothmg.Move
 		var score int
 
 		if eng.AspirationSearchEnabled {
@@ -121,16 +123,16 @@ func (eng *BruteForceEngine) BestMove(remainingTime int) *Move {
 }
 
 // NegaMax does a negamax search of the tree up to the passed depth
-func (eng *BruteForceEngine) NegaMax(depth int, alpha int, beta int, endTime time.Time, evaluations *ZobristTable, quiescentEvaluations *ZobristTable) (bool, *Move, int) {
-	var legalMoves []*Move
+func (eng *BruteForceEngine) NegaMax(depth int, alpha int, beta int, endTime time.Time, evaluations *ZobristTable, quiescentEvaluations *ZobristTable) (bool, dragontoothmg.Move, int) {
+	var legalMoves []dragontoothmg.Move
 
 	// We can use the evaluation score from the previous iteration to sort the moves,
 	// exploring first the moves that have the highest chance of being the best one
 	// allows the alpha-beta algorithm to prune more branches
 	if eng.MoveSortingEnabled {
-		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluations)
+		legalMoves = eng.sortMoves(eng.game.GenerateLegalMoves(), evaluations)
 	} else {
-		legalMoves = eng.game.LegalMoves()
+		legalMoves = eng.game.GenerateLegalMoves()
 	}
 
 	bestMove := legalMoves[0]
@@ -139,17 +141,17 @@ func (eng *BruteForceEngine) NegaMax(depth int, alpha int, beta int, endTime tim
 
 	// mainLine is a diagnostic value that tracks what the bot thinks
 	// would be the perfect game from now on
-	mainLine := []*Move{}
+	mainLine := []dragontoothmg.Move{}
 
 	// Try each move, recursively compute the score of the resulting position and
 	// choose the best move for us (that is the worst for our opponent)
 	for i := 0; i < len(legalMoves); i++ {
 		// Abort search if running out of time
 		if time.Now().After(endTime) {
-			return true, nil, 0
+			return true, dragontoothmg.Move(0), 0
 		}
 
-		eng.game.Move(legalMoves[i])
+		undo := eng.game.Apply(legalMoves[i])
 
 		// Get the evaluation of the position from our opponents point of view and flip it (best for us is worst for our opponent)
 		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluations, quiescentEvaluations)
@@ -167,7 +169,7 @@ func (eng *BruteForceEngine) NegaMax(depth int, alpha int, beta int, endTime tim
 				// The score will be outside the bounds of the aspiration window, so we can
 				// stop the search already
 				if alpha > beta && eng.AlphaBetaPruningEnabled {
-					eng.game.UndoMove()
+					undo()
 					return false, bestMove, alpha
 				}
 			}
@@ -182,27 +184,27 @@ func (eng *BruteForceEngine) NegaMax(depth int, alpha int, beta int, endTime tim
 			}
 		}
 
-		eng.game.UndoMove()
+		undo()
 	}
 
 	// Log diagnostics about the best move found with this depth of search
 	fmt.Printf("Depth: %d, Score: %d, Main line: ", depth, bestScore)
 	for i := len(mainLine) - 1; i >= 0; i-- {
-		fmt.Printf("%s ", *mainLine[i])
+		fmt.Printf("%s ", mainLine[i])
 	}
 	fmt.Println()
 
 	return false, bestMove, bestScore
 }
 
-func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []*Move) {
+func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []dragontoothmg.Move) {
 	_nodeHits++
 
 	switch eng.game.Result() {
 	case Draw:
-		return DrawScore, []*Move{}
+		return DrawScore, []dragontoothmg.Move{}
 	case Checkmate:
-		return CheckmateScore, []*Move{}
+		return CheckmateScore, []dragontoothmg.Move{}
 	}
 
 	if depth == 0 {
@@ -213,44 +215,44 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 			return eng.quiescentSearch(7, alpha, beta, evaluationCache, quiescentCache)
 		}
 
-		return eng.StaticEvaluation(), []*Move{}
+		return eng.StaticEvaluation(), []dragontoothmg.Move{}
 	}
 
 	bestScore := -Infinity
-	mainLine := []*Move{}
+	mainLine := []dragontoothmg.Move{}
 
 	// If this position's evaluation is cached we don't need to recompute it, we could have also stored a lower bound
 	// because the search had been stopped by alpha-beta pruning.
-	if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
-		if !value.LowerBound() {
-			return value.Evaluation(), mainLine
-		}
+	// if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
+	// 	if !value.LowerBound() {
+	// 		return value.Evaluation(), mainLine
+	// 	}
 
-		bestScore := value.Evaluation()
-		if bestScore > alpha {
-			alpha = bestScore
+	// 	bestScore := value.Evaluation()
+	// 	if bestScore > alpha {
+	// 		alpha = bestScore
 
-			if alpha >= beta {
-				return alpha, mainLine
-			}
-		}
-	}
+	// 		if alpha >= beta {
+	// 			return alpha, mainLine
+	// 		}
+	// 	}
+	// }
 
-	var legalMoves []*Move
+	var legalMoves []dragontoothmg.Move
 	// Sorting the moves using the past evaluations allows us to evaluate first the moves that have a high
 	// probability of being the best, this makes alpha-beta pruning more effective
 	if eng.MoveSortingEnabled {
-		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluationCache)
+		legalMoves = eng.sortMoves(eng.game.GenerateLegalMoves(), evaluationCache)
 	} else {
-		legalMoves = eng.game.LegalMoves()
+		legalMoves = eng.game.GenerateLegalMoves()
 	}
 
 	for i := 0; i < len(legalMoves); i++ {
-		eng.game.Move(legalMoves[i])
+		undo := eng.game.Apply(legalMoves[i])
 
 		score, variation := eng.recNegaMax(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
 		score = -score
-		eng.game.UndoMove()
+		undo()
 
 		if score > bestScore {
 			bestScore = score
@@ -263,8 +265,8 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 				// previous move will opt for a move giving us a weaker position.
 				if alpha > beta && eng.AlphaBetaPruningEnabled {
 					// Store evaluation in the cache
-					hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
-					evaluationCache.Set(eng.game.position.hash.Key(), hash)
+					// hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+					// evaluationCache.Set(eng.game.position.hash.Key(), hash)
 
 					return alpha, mainLine
 				}
@@ -273,98 +275,98 @@ func (eng *BruteForceEngine) recNegaMax(depth int, alpha int, beta int, evaluati
 	}
 
 	// Store evaluation in the cache
-	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), false)
-	evaluationCache.Set(eng.game.position.hash.Key(), hash)
+	// hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), false)
+	// evaluationCache.Set(eng.game.position.hash.Key(), hash)
 
 	return bestScore, mainLine
 }
 
-func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []*Move) {
+func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, evaluationCache *ZobristTable, quiescentCache *ZobristTable) (int, []dragontoothmg.Move) {
 	_nodeHits++
 
 	switch eng.game.Result() {
 	case Draw:
-		return DrawScore, []*Move{}
+		return DrawScore, []dragontoothmg.Move{}
 	case Checkmate:
-		return CheckmateScore, []*Move{}
+		return CheckmateScore, []dragontoothmg.Move{}
 	}
 
 	// At depth 0 we statically evaluate the position with the implemented heuristics
 	if depth == 0 {
-		return eng.StaticEvaluation(), []*Move{}
+		return eng.StaticEvaluation(), []dragontoothmg.Move{}
 	}
 
-	var legalMoves []*Move
+	var legalMoves []dragontoothmg.Move
 	if eng.MoveSortingEnabled {
-		legalMoves = eng.sortMoves(eng.game.LegalMoves(), evaluationCache)
+		legalMoves = eng.sortMoves(eng.game.GenerateLegalMoves(), evaluationCache)
 	} else {
-		legalMoves = eng.game.LegalMoves()
+		legalMoves = eng.game.GenerateLegalMoves()
 	}
 
 	var bestScore int = -Infinity
-	mainLine := []*Move{}
+	mainLine := []dragontoothmg.Move{}
 	// Inside the quiescent search we can read evaluations from both the quiescent evaluations cache
 	// and the full evaluation cache; the latter don't need to be depth checked, because they surely
 	// searched deeper than the quiescent search would do.
-	if found, value := quiescentCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
-		if !value.LowerBound() {
-			return value.Evaluation(), mainLine
-		}
+	// if found, value := quiescentCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found && value.Depth() >= depth {
+	// 	if !value.LowerBound() {
+	// 		return value.Evaluation(), mainLine
+	// 	}
 
-		bestScore = value.Evaluation()
-		if bestScore > alpha {
-			alpha = bestScore
+	// 	bestScore = value.Evaluation()
+	// 	if bestScore > alpha {
+	// 		alpha = bestScore
 
-			if alpha >= beta {
-				return alpha, mainLine
-			}
-		}
-	} else if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
-		if !value.LowerBound() {
-			return value.Evaluation(), mainLine
-		}
+	// 		if alpha >= beta {
+	// 			return alpha, mainLine
+	// 		}
+	// 	}
+	// } else if found, value := evaluationCache.Get(eng.game.position.hash); eng.TranspositionTableEnabled && found {
+	// 	if !value.LowerBound() {
+	// 		return value.Evaluation(), mainLine
+	// 	}
 
-		bestScore = value.Evaluation()
-		if bestScore > alpha {
-			alpha = bestScore
+	// 	bestScore = value.Evaluation()
+	// 	if bestScore > alpha {
+	// 		alpha = bestScore
 
-			if alpha >= beta {
-				return alpha, mainLine
-			}
-		}
-	} else {
-		// Replace with null move evaluation
-		bestScore = eng.StaticEvaluation()
+	// 		if alpha >= beta {
+	// 			return alpha, mainLine
+	// 		}
+	// 	}
+	// } else {
+	// Replace with null move evaluation
+	bestScore = eng.StaticEvaluation()
 
-		// Null move heuristic
-		// eng.game.Move(&NullMove)
-		// score, _ := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
-		// bestScore = score
-		// eng.game.UndoMove()
+	// Null move heuristic
+	// eng.game.Move(&NullMove)
+	// score, _ := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
+	// bestScore = score
+	// eng.game.UndoMove()
 
-		// if bestScore > alpha {
-		// 	alpha = bestScore
+	// if bestScore > alpha {
+	// 	alpha = bestScore
 
-		// 	if alpha >= beta && eng.AlphaBetaPruningEnabled {
-		// 		hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
-		// 		quiescentCache.Set(eng.game.position.hash.Key(), hash)
-		// 		return alpha, mainLine
-		// 	}
-		// }
-	}
+	// 	if alpha >= beta && eng.AlphaBetaPruningEnabled {
+	// 		hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+	// 		quiescentCache.Set(eng.game.position.hash.Key(), hash)
+	// 		return alpha, mainLine
+	// 	}
+	// }
+	// }
 
 	// If there are no disruptive moves, then we have found a quiescent position,
 	// we can stop the search and evaluate statically this position
 	disruptiveMoveFound := false
 
 	for i := 0; i < len(legalMoves); i++ {
-		if eng.game.position.inCheck || legalMoves[i].IsCapture() {
+		if /*eng.game.position.inCheck ||*/ legalMoves[i].IsCapture() {
 			disruptiveMoveFound = true
 
-			eng.game.Move(legalMoves[i])
+			undo := eng.game.Apply(legalMoves[i])
 			score, variation := eng.quiescentSearch(depth-1, -beta, -alpha, evaluationCache, quiescentCache)
 			score = -score
-			eng.game.UndoMove()
+			undo()
 
 			if score > bestScore {
 				bestScore = score
@@ -375,8 +377,8 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 
 					if alpha > beta && eng.AlphaBetaPruningEnabled {
 						// Store the evaluation in the cache
-						hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
-						quiescentCache.Set(eng.game.position.hash.Key(), hash)
+						// hash := eng.game.position.hash.HashValue().SetData(int16(alpha), int8(depth), true)
+						// quiescentCache.Set(eng.game.position.hash.Key(), hash)
 						return alpha, mainLine
 					}
 				}
@@ -386,12 +388,12 @@ func (eng *BruteForceEngine) quiescentSearch(depth int, alpha int, beta int, eva
 
 	// When finding a quiescent position return the static evaluation
 	if !disruptiveMoveFound {
-		return eng.StaticEvaluation(), []*Move{}
+		return eng.StaticEvaluation(), []dragontoothmg.Move{}
 	}
 
 	// Store the evaluation in the cache
-	hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), true)
-	quiescentCache.Set(eng.game.position.hash.Key(), hash)
+	// hash := eng.game.position.hash.HashValue().SetData(int16(bestScore), int8(depth), true)
+	// quiescentCache.Set(eng.game.position.hash.Key(), hash)
 
 	return bestScore, mainLine
 }
