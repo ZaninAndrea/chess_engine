@@ -62,7 +62,7 @@ func (pos *Position) Hash() ZobristHash {
 // Move returns a new position applying the move, the operation is NOT in place
 func (pos Position) Move(move *Move) Position {
 	// Check whether the move passed is the null move
-	if move.from != NoSquare {
+	if move.From() != NoSquare {
 		pos.hash ^= pos.board.Move(move)
 	}
 	pos.turn = pos.turn.Other()
@@ -78,7 +78,7 @@ func (pos Position) Move(move *Move) Position {
 	pos.legalMoves = nil
 
 	// update castle rights
-	if move.from == E1 {
+	if move.From() == E1 {
 		if pos.castleRights.WhiteKingSide {
 			pos.hash ^= zobristHashWhiteKingCastle
 			pos.castleRights.WhiteKingSide = false
@@ -89,7 +89,7 @@ func (pos Position) Move(move *Move) Position {
 			pos.castleRights.WhiteQueenSide = false
 		}
 	}
-	if move.from == E8 {
+	if move.From() == E8 {
 		if pos.castleRights.BlackKingSide {
 			pos.hash ^= zobristHashBlackKingCastle
 			pos.castleRights.BlackKingSide = false
@@ -100,19 +100,19 @@ func (pos Position) Move(move *Move) Position {
 			pos.castleRights.BlackQueenSide = false
 		}
 	}
-	if (move.from == A1 || move.to == A1) && pos.castleRights.WhiteQueenSide {
+	if (move.From() == A1 || move.To() == A1) && pos.castleRights.WhiteQueenSide {
 		pos.hash ^= zobristHashWhiteQueenCastle
 		pos.castleRights.WhiteQueenSide = false
 	}
-	if (move.from == A8 || move.to == A8) && pos.castleRights.BlackQueenSide {
+	if (move.From() == A8 || move.To() == A8) && pos.castleRights.BlackQueenSide {
 		pos.hash ^= zobristHashBlackQueenCastle
 		pos.castleRights.BlackQueenSide = false
 	}
-	if (move.from == H1 || move.to == H1) && pos.castleRights.WhiteKingSide {
+	if (move.From() == H1 || move.To() == H1) && pos.castleRights.WhiteKingSide {
 		pos.hash ^= zobristHashWhiteKingCastle
 		pos.castleRights.WhiteKingSide = false
 	}
-	if (move.from == H8 || move.to == H8) && pos.castleRights.BlackKingSide {
+	if (move.From() == H8 || move.To() == H8) && pos.castleRights.BlackKingSide {
 		pos.hash ^= zobristHashBlackKingCastle
 		pos.castleRights.BlackKingSide = false
 	}
@@ -123,7 +123,7 @@ func (pos Position) Move(move *Move) Position {
 	}
 	// update en passant square
 	if move.IsDoublePawnPush() {
-		pos.enPassantSquare = (move.to + move.from) / 2
+		pos.enPassantSquare = (move.To() + move.From()) / 2
 		pos.hash ^= zobristHashEnPassant[pos.enPassantSquare%8]
 	} else {
 		pos.enPassantSquare = NoSquare

@@ -38,7 +38,7 @@ func (c Color) Other() Color {
 }
 
 // Piece contains information about the piece type; e.g. white king, black rook, ...
-type Piece int
+type Piece int8
 
 // Names for all the pieces of the board
 const (

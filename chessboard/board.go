@@ -87,21 +87,22 @@ func (b Board) String() string {
 func (b *Board) Move(move *Move) ZobristHash {
 	var piece Piece
 	var hash ZobristHash
-	if move.promotion != NoPiece {
-		piece = move.promotion
-		hash = zobristHashMoves[b.Piece(move.from)-1][move.from] ^ zobristHashMoves[piece-1][move.to]
+
+	if move.Promotion() != NoPiece {
+		piece = move.Promotion()
+		hash = zobristHashMoves[b.Piece(move.From())-1][move.From()] ^ zobristHashMoves[piece-1][move.To()]
 	} else {
-		piece = b.Piece(move.from)
-		hash = zobristHashMoves[piece-1][move.from] ^ zobristHashMoves[piece-1][move.to]
+		piece = b.Piece(move.From())
+		hash = zobristHashMoves[piece-1][move.From()] ^ zobristHashMoves[piece-1][move.To()]
 	}
 
-	targetPiece := b.Piece(move.to)
+	targetPiece := b.Piece(move.To())
 	if targetPiece != NoPiece {
-		hash ^= zobristHashMoves[targetPiece-1][move.to]
+		hash ^= zobristHashMoves[targetPiece-1][move.To()]
 	}
 
-	fromBB := move.from.Bitboard()
-	toBB := move.to.Bitboard()
+	fromBB := move.From().Bitboard()
+	toBB := move.To().Bitboard()
 	othersBB := ^(fromBB | toBB)
 
 	// Remove the piece in the start and target squares
@@ -150,9 +151,9 @@ func (b *Board) Move(move *Move) ZobristHash {
 
 	// Update king position
 	if piece == WhiteKing {
-		b.whiteKingSquare = move.to
+		b.whiteKingSquare = move.To()
 	} else if piece == BlackKing {
-		b.blackKingSquare = move.to
+		b.blackKingSquare = move.To()
 	}
 
 	// Update summary bitboards
@@ -167,7 +168,7 @@ func (b *Board) Move(move *Move) ZobristHash {
 
 	// Move rook in castling
 	if move.IsCastle() {
-		if move.flags&WhiteKingCastleFlag != 0 {
+		if *move&WhiteKingCastleFlag != 0 {
 			b.bbWhiteRook |= F1.Bitboard()
 			b.bbWhiteRook ^= H1.Bitboard()
 
@@ -178,7 +179,7 @@ func (b *Board) Move(move *Move) ZobristHash {
 			b.emptySquares |= H1.Bitboard()
 
 			hash ^= zobristHashMoves[WhiteRook-1][F1] ^ zobristHashMoves[WhiteRook-1][H1]
-		} else if move.flags&WhiteQueenCastleFlag != 0 {
+		} else if *move&WhiteQueenCastleFlag != 0 {
 			b.bbWhiteRook |= D1.Bitboard()
 			b.bbWhiteRook ^= A1.Bitboard()
 
@@ -189,7 +190,7 @@ func (b *Board) Move(move *Move) ZobristHash {
 			b.emptySquares |= A1.Bitboard()
 
 			hash ^= zobristHashMoves[WhiteRook-1][D1] ^ zobristHashMoves[WhiteRook-1][A1]
-		} else if move.flags&BlackKingCastleFlag != 0 {
+		} else if *move&BlackKingCastleFlag != 0 {
 			b.bbBlackRook |= F8.Bitboard()
 			b.bbBlackRook ^= H8.Bitboard()
 
@@ -199,7 +200,7 @@ func (b *Board) Move(move *Move) ZobristHash {
 			b.emptySquares ^= F8.Bitboard()
 			b.emptySquares |= H8.Bitboard()
 			hash ^= zobristHashMoves[BlackRook-1][F8] ^ zobristHashMoves[BlackRook-1][H8]
-		} else if move.flags&BlackQueenCastleFlag != 0 {
+		} else if *move&BlackQueenCastleFlag != 0 {
 			b.bbBlackRook |= D8.Bitboard()
 			b.bbBlackRook ^= A8.Bitboard()
 
@@ -214,14 +215,14 @@ func (b *Board) Move(move *Move) ZobristHash {
 
 	// capture en passant pawn
 	if move.IsEnPassant() {
-		if move.flags&WhiteEnPassantFlag != 0 {
-			blackPawnPosition := (move.to - 8).Bitboard()
+		if *move&WhiteEnPassantFlag != 0 {
+			blackPawnPosition := (move.To() - 8).Bitboard()
 
 			b.bbBlackPawn ^= blackPawnPosition
 			b.blackSquares ^= blackPawnPosition
 			b.emptySquares |= blackPawnPosition
 		} else {
-			whitePawnPosition := (move.to + 8).Bitboard()
+			whitePawnPosition := (move.To() + 8).Bitboard()
 
 			b.bbWhitePawn ^= whitePawnPosition
 			b.whiteSquares ^= whitePawnPosition

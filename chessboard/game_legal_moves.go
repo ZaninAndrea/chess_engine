@@ -28,9 +28,9 @@ func (game *Game) LegalMoves() []*Move {
 	for i := 0; i < len(pseudolegalMoves); i++ {
 		if checkMoveLegality(pseudolegalMoves[i], game) {
 			// Captures should reset the half move clock
-			if pseudolegalMoves[i].to.Bitboard()&game.position.board.emptySquares == 0 {
-				pseudolegalMoves[i].flags |= ResetHalfMoveClockFlag
-				pseudolegalMoves[i].flags |= IsCaptureFlag
+			if pseudolegalMoves[i].To().Bitboard()&game.position.board.emptySquares == 0 {
+				*pseudolegalMoves[i] |= ResetHalfMoveClockFlag
+				*pseudolegalMoves[i] |= IsCaptureFlag
 			}
 
 			legalMoves = append(legalMoves, pseudolegalMoves[i])
@@ -78,7 +78,7 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 	fromSquare := kingSquare
 	for kingMovesBB != 0 {
 		toSquare := square(kingMovesBB.LeastSignificant1Bit())
-		*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+		*moves = append(*moves, NewMove(fromSquare, toSquare, NoPiece, NoFlag))
 
 		kingMovesBB.ClearLeastSignificant1Bit()
 	}
@@ -91,7 +91,7 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E1) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, F1) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, G1) {
-			*moves = append(*moves, &Move{from: E1, to: G1, flags: WhiteKingCastleFlag})
+			*moves = append(*moves, NewMove(E1, G1, NoPiece, WhiteKingCastleFlag))
 		}
 
 		if game.position.castleRights.WhiteQueenSide &&
@@ -99,7 +99,7 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E1) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, D1) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, C1) {
-			*moves = append(*moves, &Move{from: E1, to: C1, flags: WhiteQueenCastleFlag})
+			*moves = append(*moves, NewMove(E1, C1, NoPiece, WhiteQueenCastleFlag))
 		}
 	} else {
 		if game.position.castleRights.BlackKingSide &&
@@ -107,7 +107,7 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E8) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, F8) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, G8) {
-			*moves = append(*moves, &Move{from: E8, to: G8, flags: BlackKingCastleFlag})
+			*moves = append(*moves, NewMove(E8, G8, NoPiece, BlackKingCastleFlag))
 		}
 
 		if game.position.castleRights.BlackQueenSide &&
@@ -115,7 +115,7 @@ func computeKingMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, E8) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, D8) &&
 			!game.position.board.IsUnderAttack(&game.precomputedData, game.position.turn, C8) {
-			*moves = append(*moves, &Move{from: E8, to: C8, flags: BlackQueenCastleFlag})
+			*moves = append(*moves, NewMove(E8, C8, NoPiece, BlackQueenCastleFlag))
 		}
 
 	}
@@ -141,7 +141,7 @@ func computeKnightMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			toSquare := square(knightMovesBB.LeastSignificant1Bit())
 			knightMovesBB.ClearLeastSignificant1Bit()
 
-			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+			*moves = append(*moves, NewMove(fromSquare, toSquare, NoPiece, NoFlag))
 		}
 	}
 }
@@ -164,10 +164,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if fromSquare < A3 {
 					forwardSquare := square(fromSquare + 16)
 					if game.position.board.emptySquares.IsSquareOccupied(forwardSquare) {
-						*moves = append(*moves, &Move{
-							from:  fromSquare,
-							to:    forwardSquare,
-							flags: ResetHalfMoveClockFlag | DoublePawnPushFlag})
+						*moves = append(*moves, NewMove(
+							fromSquare,
+							forwardSquare,
+							NoPiece,
+							ResetHalfMoveClockFlag|DoublePawnPushFlag))
 					}
 				}
 			}
@@ -178,10 +179,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if game.position.board.blackSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
 				} else if game.position.enPassantSquare == captureSquare {
-					*moves = append(*moves, &Move{
-						from:  fromSquare,
-						to:    captureSquare,
-						flags: ResetHalfMoveClockFlag | WhiteEnPassantFlag})
+					*moves = append(*moves, NewMove(
+						fromSquare,
+						captureSquare,
+						NoPiece,
+						ResetHalfMoveClockFlag|WhiteEnPassantFlag))
 				}
 			}
 
@@ -191,10 +193,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if game.position.board.blackSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
 				} else if game.position.enPassantSquare == captureSquare {
-					*moves = append(*moves, &Move{
-						from:  fromSquare,
-						to:    captureSquare,
-						flags: ResetHalfMoveClockFlag | WhiteEnPassantFlag})
+					*moves = append(*moves, NewMove(
+						fromSquare,
+						captureSquare,
+						NoPiece,
+						ResetHalfMoveClockFlag|WhiteEnPassantFlag))
 				}
 			}
 		}
@@ -215,10 +218,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if fromSquare > H6 {
 					forwardSquare := square(fromSquare - 16)
 					if game.position.board.emptySquares.IsSquareOccupied(forwardSquare) {
-						*moves = append(*moves, &Move{
-							from:  fromSquare,
-							to:    forwardSquare,
-							flags: ResetHalfMoveClockFlag | DoublePawnPushFlag})
+						*moves = append(*moves, NewMove(
+							fromSquare,
+							forwardSquare,
+							NoPiece,
+							ResetHalfMoveClockFlag|DoublePawnPushFlag))
 					}
 				}
 			}
@@ -229,10 +233,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if game.position.board.whiteSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
 				} else if game.position.enPassantSquare == captureSquare {
-					*moves = append(*moves, &Move{
-						from:  fromSquare,
-						to:    captureSquare,
-						flags: ResetHalfMoveClockFlag | BlackEnPassantFlag})
+					*moves = append(*moves, NewMove(
+						fromSquare,
+						captureSquare,
+						NoPiece,
+						ResetHalfMoveClockFlag|BlackEnPassantFlag))
 				}
 			}
 
@@ -242,10 +247,11 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 				if game.position.board.whiteSquares.IsSquareOccupied(captureSquare) {
 					appendPawnMove(fromSquare, captureSquare, moves)
 				} else if game.position.enPassantSquare == captureSquare {
-					*moves = append(*moves, &Move{
-						from:  fromSquare,
-						to:    captureSquare,
-						flags: ResetHalfMoveClockFlag | BlackEnPassantFlag})
+					*moves = append(*moves, NewMove(
+						fromSquare,
+						captureSquare,
+						NoPiece,
+						ResetHalfMoveClockFlag|BlackEnPassantFlag))
 				}
 			}
 		}
@@ -254,17 +260,17 @@ func computePawnMoves(game *Game, moves *[]*Move) {
 
 func appendPawnMove(from square, to square, moves *[]*Move) {
 	if to > H7 {
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteBishop, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteKnight, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteRook, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: WhiteQueen, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, NewMove(from, to, WhiteBishop, ResetHalfMoveClockFlag|IsCaptureFlag))
+		*moves = append(*moves, NewMove(from, to, WhiteKnight, ResetHalfMoveClockFlag|IsCaptureFlag))
+		*moves = append(*moves, NewMove(from, to, WhiteRook, ResetHalfMoveClockFlag|IsCaptureFlag))
+		*moves = append(*moves, NewMove(from, to, WhiteQueen, ResetHalfMoveClockFlag|IsCaptureFlag))
 	} else if to < A2 {
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackBishop, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackKnight, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackRook, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
-		*moves = append(*moves, &Move{from: from, to: to, promotion: BlackQueen, flags: ResetHalfMoveClockFlag | IsCaptureFlag})
+		*moves = append(*moves, NewMove(from, to, BlackBishop, ResetHalfMoveClockFlag|IsCaptureFlag))
+		*moves = append(*moves, NewMove(from, to, BlackKnight, ResetHalfMoveClockFlag|IsCaptureFlag))
+		*moves = append(*moves, NewMove(from, to, BlackRook, ResetHalfMoveClockFlag|IsCaptureFlag))
+		*moves = append(*moves, NewMove(from, to, BlackQueen, ResetHalfMoveClockFlag|IsCaptureFlag))
 	} else {
-		*moves = append(*moves, &Move{from: from, to: to, flags: ResetHalfMoveClockFlag})
+		*moves = append(*moves, NewMove(from, to, NoPiece, ResetHalfMoveClockFlag))
 	}
 }
 
@@ -294,7 +300,7 @@ func computeRookMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			toSquare := square(rookMovesBB.LeastSignificant1Bit())
 			rookMovesBB.ClearLeastSignificant1Bit()
 
-			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+			*moves = append(*moves, NewMove(fromSquare, toSquare, NoPiece, NoFlag))
 		}
 	}
 }
@@ -325,7 +331,7 @@ func computeBishopMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			toSquare := square(bishopMovesBB.LeastSignificant1Bit())
 			bishopMovesBB.ClearLeastSignificant1Bit()
 
-			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+			*moves = append(*moves, NewMove(fromSquare, toSquare, NoPiece, NoFlag))
 		}
 	}
 }
@@ -362,7 +368,7 @@ func computeQueenMoves(game *Game, moves *[]*Move, ownPieces *Bitboard) {
 			toSquare := square(queenMovesBB.LeastSignificant1Bit())
 			queenMovesBB.ClearLeastSignificant1Bit()
 
-			*moves = append(*moves, &Move{from: fromSquare, to: toSquare})
+			*moves = append(*moves, NewMove(fromSquare, toSquare, NoPiece, NoFlag))
 		}
 	}
 }

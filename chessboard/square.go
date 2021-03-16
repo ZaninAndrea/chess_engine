@@ -3,7 +3,7 @@ package chessboard
 import "fmt"
 
 // Square represents a square on the board
-type square int
+type square int8
 
 // Bitboard returns a bitboard with only the passed square on
 func (s square) Bitboard() Bitboard {

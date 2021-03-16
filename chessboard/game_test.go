@@ -52,3 +52,60 @@ func BenchmarkMoveGeneration6Ply(b *testing.B) {
 		b.Log(total)
 	}
 }
+
+func BenchmarkStaticMoveGeneration(b *testing.B) {
+	game := NewGame()
+
+	total := 0
+	for i := 0; i < b.N; i++ {
+		game.position.legalMoves = nil
+		total += len(game.LegalMoves())
+	}
+
+	b.ReportMetric(float64(total), "total")
+}
+
+func BenchmarkStaticQueenMovesGeneration(b *testing.B) {
+	game := NewGame()
+
+	for i := 0; i < b.N; i++ {
+		_moves := make([]Move, 0, 35)
+		moves := &_moves
+		ownPieces := &game.position.board.whiteSquares
+
+		var queens Bitboard
+		if game.position.turn == WhiteColor {
+			queens = game.position.board.bbWhiteQueen
+		} else {
+			queens = game.position.board.bbBlackQueen
+		}
+
+		// Compute the moves of each queen by considering both rook and bishop moves
+		for queens != 0 {
+			fromSquare := square(queens.LeastSignificant1Bit())
+			queens.ClearLeastSignificant1Bit()
+
+			blockersBishop := (^game.position.board.emptySquares) & game.precomputedData.BishopMasks[fromSquare]
+			blockersRook := (^game.position.board.emptySquares) & game.precomputedData.RookMasks[fromSquare]
+
+			keyBishop := (uint64(blockersBishop) * game.precomputedData.BishopMagics[fromSquare]) >> (64 - game.precomputedData.BishopIndexBits[fromSquare])
+			keyRook := (uint64(blockersRook) * game.precomputedData.RookMagics[fromSquare]) >> (64 - game.precomputedData.RookIndexBits[fromSquare])
+
+			// Return the preinitialized attack set bitboard from the table
+			bishopMovesBB := game.precomputedData.BishopMoves[fromSquare][keyBishop]
+			rookMovesBB := game.precomputedData.RookMoves[fromSquare][keyRook]
+
+			queenMovesBB := bishopMovesBB | rookMovesBB
+
+			// Remove self-captures
+			queenMovesBB &^= *ownPieces
+
+			for queenMovesBB != 0 {
+				toSquare := square(queenMovesBB.LeastSignificant1Bit())
+				queenMovesBB.ClearLeastSignificant1Bit()
+
+				*moves = append(*moves, *NewMove(fromSquare, toSquare, NoPiece, NoFlag))
+			}
+		}
+	}
+}

@@ -32,7 +32,7 @@ func TestMove(t *testing.T) {
 		bbBlackKing: E3.Bitboard(),
 	}
 
-	b.Move(&Move{from: C2, to: C3})
+	b.Move(NewMove(C2, C3, NoPiece, NoFlag))
 
 	if b.Piece(C2) != NoPiece {
 		t.Error("Piece should be removed from starting square")
