@@ -1,6 +1,8 @@
 # Chess engine
 
-This is a Work In Progress
+This is a proof of concept implementation of a chess engine developed while writing my Bachelor's thesis. It implements from scratch all aspects of a basic chess engine: legal moves generation, tree exploration and static evaluation.
+
+The performance of the tree exploration is acceptable and the main focus should now be implementing better heuristics for the static evaluation.
 
 ## How to use
 
